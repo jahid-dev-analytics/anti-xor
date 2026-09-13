@@ -72,9 +72,24 @@
     '  if (dot(N,V) < 0.0) N = -N;',
     '  float NdV = max(dot(N,V), 0.0);',
     '  vec3 base; float rough; float metal; float f0;',
-    '  bool glass = (vPart < 0.5) && (vM.y > vGlass);',
+    /* A greenhouse with no pillars reads as a bubble canopy, so the A, B and C
+       pillars are painted back in: bands of x, on the sides only, where the
+       glass reverts to body paint. Across the roof they must not appear, or
+       they become stripes. */
+    '  float pillarSide = smoothstep(0.34,0.60,abs(vM.z));',
+    '  float pillar = pillarSide * max(max(',
+    '      smoothstep(0.085,0.038,abs(vM.x-0.50)),',
+    '      smoothstep(0.058,0.022,abs(vM.x+0.12))),',
+    '      smoothstep(0.095,0.042,abs(vM.x+0.90)));',
+    '  bool glass = (vPart < 0.5) && (vM.y > vGlass) && (pillar < 0.5);',
+    '  bool post = (vPart < 0.5) && (vM.y > vGlass) && (pillar >= 0.5);',
     '  if (vPart < 0.5){',
-    '    if (glass){ base = vec3(0.008,0.012,0.012); rough = 0.06; metal = 0.9; f0 = 0.05; }',
+    /* metal 0.9 on glass turned the cabin into a mirrored dome; real glazing
+       is far less reflective and much darker than the paint around it */
+    '    if (glass){ base = vec3(0.003,0.005,0.006); rough = 0.14; metal = 0.16; f0 = 0.045; }',
+    /* pillars in gloss black rather than body colour: it is what modern cars
+       do, and it separates the glass from the roof far more crisply */
+    '    else if (post){ base = vec3(0.006,0.008,0.008); rough = 0.20; metal = 0.25; f0 = 0.05; }',
     '    else { base = vec3(0.040,0.085,0.062); rough = 0.22; metal = 0.55; f0 = 0.06; }',
     '  } else if (vPart < 1.5){ base = vec3(0.055,0.06,0.056); rough = 0.9; metal = 0.0; f0 = 0.03; }',
     '  else if (vPart < 2.5){ base = vec3(0.13,0.145,0.135); rough = 0.34; metal = 0.85; f0 = 0.35; }',
@@ -88,19 +103,94 @@
     '  vec3 spec = (pow(max(dot(N,H1),0.0),shin)*C1 + pow(max(dot(N,H2),0.0),shin)*C2) * (F*(1.0-rough*0.5)+0.05);',
     '  vec3 R = reflect(-V, N);',
     '  vec3 refl = env(R) * mix(F, 1.0, metal) * (1.0 - rough*0.75);',
+    /* Clearcoat. Car paint is lacquer over colour, so the sharp highlight
+       riding on top of the soft one is most of what says "painted metal"
+       rather than "plastic". */
+    '  if (vPart < 0.5 && !glass){',
+    '    float cc = pow(max(dot(N,H1),0.0),900.0)*1.7 + pow(max(dot(N,H2),0.0),900.0)*0.8;',
+    '    spec += cc * vec3(1.0,0.98,0.94) * (0.05 + 0.95*F);',
+    '  }',
+    /* The studio strips in env() are what light the paint, but reflected off
+       the windscreen at full strength they smear the whole cabin white. Glass
+       keeps a much weaker, more contrasty reflection. */
+    '  if (glass) refl *= 0.42;',
     '  vec3 col = diff + spec + refl;',
-    '  if (vPart < 0.5 && !glass){ col += pow(1.0-NdV, 3.0) * vec3(0.55,0.95,0.42) * 0.22; }',
+    '  if (glass) col *= 0.62;',
+    '  if (vPart < 0.5 && !glass && !post){ col += pow(1.0-NdV, 3.0) * vec3(0.55,0.95,0.42) * 0.22; }',
     '  if (vPart > 2.5){ col += base*0.9; }',
+
+    /* ---- alloy wheel, carved in the rim's own polar coordinates ----
+       Both wheels on an axle sit at x = ±1.42, y = 0.34, so |x|-1.42 and
+       y-0.34 give the same local frame for all four without a uniform. */
+    '  if (vPart > 1.5 && vPart < 2.5){',
+    '    vec2 w = vec2(abs(vM.x) - 1.42, vM.y - 0.34);',
+    '    float rad = length(w); float ang = atan(w.y, w.x);',
+    '    float lobe = abs(cos(ang*2.5));',           /* five spokes */
+    '    float gap  = smoothstep(0.76,0.50,lobe);',
+    '    float face = smoothstep(0.050,0.068,rad) * smoothstep(0.214,0.196,rad);',
+    '    col = mix(col, vec3(0.018,0.022,0.022), gap*face);',       /* voids */
+    '    col += gap*face*smoothstep(0.20,0.09,rad) * vec3(0.09,0.10,0.105);', /* brake disc behind */
+    '    float lip = smoothstep(0.206,0.220,rad) * smoothstep(0.246,0.228,rad);',
+    '    float hub = smoothstep(0.064,0.044,rad);',
+    '    col += (lip*0.60 + hub*0.40) * vec3(0.30,0.34,0.32);',
+    '    col += smoothstep(0.030,0.016,abs(rad-0.038)) * smoothstep(0.82,0.95,lobe) * vec3(0.20,0.22,0.21);',
+    /* the brand green lives here now — a caliper glimpsed between the spokes,
+       which is where a colour like this actually appears on a car */
+    '    float cal = smoothstep(0.040,0.022,abs(rad-0.165))',
+    '              * smoothstep(-0.55,-0.20,ang) * smoothstep(0.55,0.20,ang);',
+    '    col = mix(col, vec3(0.42,0.72,0.16), cal*face*0.85);',
+    '  }',
+    /* tyre: a shoulder where the sidewall turns, and tread on the crown */
+    '  if (vPart > 0.5 && vPart < 1.5){',
+    '    vec2 w = vec2(abs(vM.x) - 1.42, vM.y - 0.34);',
+    '    float rad = length(w); float ang = atan(w.y, w.x);',
+    '    col *= 0.84 + 0.16*smoothstep(0.26,0.33,rad);',
+    '    col *= 1.0 + 0.05*smoothstep(0.305,0.335,rad)*sin(ang*70.0);',
+    '  }',
+
+    /* ---- body panel work ---- */
+    '  if (vPart < 0.5 && !glass){',
+    '    float side = smoothstep(0.46,0.76,abs(vM.z));',
+    '    float belt = smoothstep(0.30,0.38,vM.y) * smoothstep(vGlass+0.05,vGlass-0.12,vM.y);',
+    '    float cut  = min(abs(vM.x-0.36), abs(vM.x+0.60));',
+    '    col *= 1.0 - 0.62*smoothstep(0.020,0.004,cut)*side*belt;',   /* door shut lines */
+    '    float hx2 = min(abs(vM.x-0.02), abs(vM.x+0.96));',
+    '    col += smoothstep(0.11,0.05,hx2)*smoothstep(0.038,0.012,abs(vM.y-(vGlass-0.12)))',
+    '           * side * vec3(0.16,0.18,0.17);',                      /* door handles */
+    '    col *= 1.0 - 0.42*smoothstep(0.37,0.27,vM.y)*side;',         /* rocker in shadow */
+    /* wheel-arch lip: without it the tyres look like they pass through the
+       bodywork rather than sitting inside an opening */
+    '    float ar = length(vec2(abs(vM.x)-1.42, vM.y-0.34));',
+    '    col *= 1.0 - 0.55*smoothstep(0.355,0.395,ar)*smoothstep(0.455,0.405,ar)*side;',
+    /* shoulder crease running the length of the flank */
+    '    col += 0.05*smoothstep(0.030,0.004,abs(vM.y-(vGlass-0.26)))*side;',
+    '  }',
+    /* bright surround where the glass meets the body — a luxury-car cue */
+    '  if (vPart < 0.5 && vGlass < 90.0){',
+    '    col = mix(col, vec3(0.30,0.33,0.31),',
+    '      smoothstep(0.034,0.0,abs(vM.y - vGlass)) * 0.55 * smoothstep(0.42,0.70,abs(vM.z)));',
+    '  }',
     /* head and tail lights carved by position */
     '  if (vPart < 0.5){',
-    '    float hx = smoothstep(1.96,2.02,vM.x);',
-    '    float hy = smoothstep(0.50,0.53,vM.y)*smoothstep(0.66,0.63,vM.y);',
-    '    float hz = smoothstep(0.38,0.42,abs(vM.z))*smoothstep(0.86,0.82,abs(vM.z));',
-    '    col += hx*hy*hz * vec3(0.9,1.0,0.92) * uHead * 2.6;',
-    '    float tx = smoothstep(-2.02,-2.08,vM.x);',
-    '    float ty = smoothstep(0.66,0.69,vM.y)*smoothstep(0.78,0.75,vM.y);',
-    '    float tz = smoothstep(0.86,0.82,abs(vM.z))*smoothstep(0.22,0.28,abs(vM.z));',
-    '    col += tx*ty*tz * vec3(1.0,0.16,0.10) * 1.2;',
+    /* Headlights belong at the corners. Spanning most of the nose, as they
+       did, made one white bar across the whole front. */
+    '    float hz = smoothstep(0.50,0.61,abs(vM.z))*smoothstep(0.88,0.77,abs(vM.z));',
+    '    float hx = smoothstep(1.88,1.98,vM.x);',
+    '    float hy = smoothstep(0.520,0.556,vM.y)*smoothstep(0.648,0.612,vM.y);',
+    '    col += hx*hy*hz * vec3(0.95,1.0,0.96) * uHead * 3.0;',
+    /* a daytime-running strip under it, in the brand green */
+    '    float dy = smoothstep(0.478,0.497,vM.y)*smoothstep(0.520,0.501,vM.y);',
+    '    col += smoothstep(1.86,1.96,vM.x)*dy*hz * vec3(0.62,0.98,0.30) * (0.85+0.55*uHead);',
+    /* a grille between them, so the nose is not one blank surface */
+    '    col *= 1.0 - 0.50*smoothstep(1.90,2.00,vM.x)*smoothstep(0.50,0.38,abs(vM.z))',
+    '              * smoothstep(0.36,0.43,vM.y)*smoothstep(0.60,0.52,vM.y);',
+    /* shutline where the bonnet meets the base of the windscreen */
+    '    col *= 1.0 - 0.40*smoothstep(0.018,0.004,abs(vM.x-0.80))',
+    '              * smoothstep(0.60,0.28,abs(vM.z))*smoothstep(0.50,0.66,vM.y);',
+    /* one taillight bar across the tail rather than two vague patches */
+    '    float tx = smoothstep(-1.94,-2.04,vM.x);',
+    '    float ty = smoothstep(0.650,0.685,vM.y)*smoothstep(0.780,0.745,vM.y);',
+    '    col += tx*ty*smoothstep(0.92,0.84,abs(vM.z)) * vec3(1.0,0.13,0.08) * 1.6;',
     '  }',
     '  col = col/(col+vec3(0.9));',      /* soft tone map */
     '  col = pow(col, vec3(0.92));',
@@ -186,8 +276,35 @@
     revolve([[0.23,-0.17],[0.30,-0.16],[0.335,-0.10],[0.34,0],[0.335,0.10],[0.30,0.16],[0.23,0.17]], cx, cy, cz, sign, 1, 40);
     revolve([[0.0,0.13],[0.15,0.15],[0.215,0.158],[0.23,0.145],[0.235,0.12]], cx, cy, cz, sign, 2, 40);
     revolve([[0.0,-0.13],[0.22,-0.14]], cx, cy, cz, sign, 2, 24);
-    revolve([[0.235,0.12],[0.255,0.15],[0.245,0.175],[0.225,0.165]], cx, cy, cz, sign, 3, 40);
+    /* The outer rim lip is polished metal, not a lime ring: a glowing hoop
+       around each wheel read as underglow rather than as a wheel. The brand
+       colour moves to the brake caliper, carved in the fragment shader. */
+    revolve([[0.235,0.12],[0.255,0.15],[0.245,0.175],[0.225,0.165]], cx, cy, cz, sign, 2, 40);
   });
+  /* Door mirrors. Small, but nothing else on the model says "car" as quickly
+     — a body without them reads as a concept sketch. Lofted outward in z from
+     a stalk at the base of the A-pillar to a flattened head; the first and
+     last rings are tiny so the open ends close up on themselves. */
+  function doorMirror(zs){
+    var K = 16, rows = [], path = [
+      /* z,    cx,   cy,    rx,    ry   */
+      [0.86, 0.60, 0.760, 0.012, 0.012],
+      [0.94, 0.62, 0.768, 0.030, 0.026],
+      [1.00, 0.65, 0.782, 0.034, 0.030],
+      [1.04, 0.70, 0.800, 0.090, 0.052],
+      [1.09, 0.72, 0.802, 0.094, 0.055],
+      [1.12, 0.72, 0.800, 0.022, 0.018]
+    ];
+    path.forEach(function(p){
+      var ring = [];
+      for (var k=0;k<K;k++){ var th = k/K*Math.PI*2;
+        ring.push([p[1] + p[3]*Math.cos(th), p[2] + p[4]*Math.sin(th), p[0]*zs]); }
+      rows.push(ring);
+    });
+    grid(rows, true, 0, null, function(pt,i){ return [path[i][1], path[i][2], path[i][0]*zs]; });
+  }
+  doorMirror(1); doorMirror(-1);
+
   (function shadow(){
     var base = P.length/3;
     var q = [[-3.2,0.004,-1.7],[3.2,0.004,-1.7],[3.2,0.004,1.7],[-3.2,0.004,1.7]];
