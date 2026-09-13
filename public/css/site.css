@@ -52,6 +52,13 @@
   .streak.b{left:56%;bottom:26%;width:16%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.8))}
   .streak.c{left:40%;bottom:18%;width:10%;background:linear-gradient(90deg,transparent,rgba(197,245,90,.6))}
   .vignette{position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 40%,transparent 55%,rgba(7,11,9,.85))}
+  /* The lede and the badges are ink-soft grey, and on wide screens they land
+     straight on the lit skyline windows. Mobile already has a scrim on
+     .hero-copy; this is the desktop half of the same idea. It sits inside
+     .hero-bg (z-index 0), so it darkens the city and never the car, which
+     rides on the canvas at z-index 1. */
+  .hero-bg::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(100deg,rgba(7,11,9,.94) 0%,rgba(7,11,9,.82) 30%,rgba(7,11,9,0) 60%)}
   .hero-copy{position:relative;z-index:2;max-width:560px}
   .eyebrow{font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;font-weight:700;color:var(--ink-soft);margin-bottom:18px;display:flex;align-items:center;gap:12px}
   .eyebrow::before{content:"";width:28px;height:1px;background:var(--ink-soft)}
