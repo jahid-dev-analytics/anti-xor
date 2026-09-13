@@ -38,6 +38,13 @@
   var gl = canvas.getContext('webgl', { antialias:true, alpha:true, premultipliedAlpha:true });
   var GL = !!gl;
 
+  /* Wheel geometry lives in ONE place. The fragment shader has to carve the
+     rim in the wheel's own coordinates, so rather than writing the same
+     numbers out twice they are substituted into the shader source as tokens
+     below. Change the wheel here and the spokes, the arch lip and the contact
+     patch all follow. */
+  var WHEEL = { x: 1.45, z: 0.86, r: 0.375 };
+
   var VS = [
     'attribute vec3 aPos; attribute vec3 aNor; attribute float aGlass; attribute float aPart;',
     'uniform mat4 uProj, uView, uModel; uniform mat3 uNormal;',
@@ -86,7 +93,7 @@
     '    float a = 0.72*(1.0-smoothstep(0.30,1.0,d));',
     /* A car does not float on one soft oval: each tyre presses a small, much
        darker patch into the ground, and that contact is what sells the weight. */
-    '    vec2 q = vec2((abs(vM.x)-1.42)/0.40, (abs(vM.z)-0.88)/0.30);',
+    '    vec2 q = vec2((abs(vM.x)-WHEEL_X)/0.42, (abs(vM.z)-WHEEL_Z)/0.30);',
     '    a = max(a, 0.94*(1.0-smoothstep(0.35,1.05,length(q))));',
     '    gl_FragColor = vec4(0.0,0.0,0.0,a); return; }',
     '  vec3 N = normalize(vN); vec3 V = normalize(uCam - vW);',
@@ -141,32 +148,34 @@
     '  if (vPart > 2.5){ col += base*0.9; }',
 
     /* ---- alloy wheel, carved in the rim's own polar coordinates ----
-       Both wheels on an axle sit at x = ±1.42, y = 0.34, so |x|-1.42 and
-       y-0.34 give the same local frame for all four without a uniform. */
+       WHEEL_X / WHEEL_Y / WHEEL_R are substituted from the WHEEL object above,
+       and every threshold below is a FRACTION of the tyre radius. That means
+       resizing the wheel is a one-line change instead of a hunt through a
+       dozen magic numbers that all have to move together. */
     '  if (vPart > 1.5 && vPart < 2.5){',
-    '    vec2 w = vec2(abs(vM.x) - 1.42, vM.y - 0.34);',
-    '    float rad = length(w); float ang = atan(w.y, w.x);',
-    '    float lobe = abs(cos(ang*2.5));',           /* five spokes */
-    '    float gap  = smoothstep(0.76,0.50,lobe);',
-    '    float face = smoothstep(0.050,0.068,rad) * smoothstep(0.214,0.196,rad);',
-    '    col = mix(col, vec3(0.018,0.022,0.022), gap*face);',       /* voids */
-    '    col += gap*face*smoothstep(0.20,0.09,rad) * vec3(0.09,0.10,0.105);', /* brake disc behind */
-    '    float lip = smoothstep(0.206,0.220,rad) * smoothstep(0.246,0.228,rad);',
-    '    float hub = smoothstep(0.064,0.044,rad);',
-    '    col += (lip*0.60 + hub*0.40) * vec3(0.30,0.34,0.32);',
-    '    col += smoothstep(0.030,0.016,abs(rad-0.038)) * smoothstep(0.82,0.95,lobe) * vec3(0.20,0.22,0.21);',
+    '    vec2 w = vec2(abs(vM.x) - WHEEL_X, vM.y - WHEEL_Y);',
+    '    float rad = length(w)/WHEEL_R; float ang = atan(w.y, w.x);',
+    '    float lobe = abs(cos(ang*5.0));',           /* ten slim spokes */
+    '    float gap  = smoothstep(0.82,0.55,lobe);',
+    '    float face = smoothstep(0.147,0.200,rad) * smoothstep(0.629,0.576,rad);',
+    '    col = mix(col, vec3(0.014,0.017,0.018), gap*face);',       /* voids */
+    '    col += gap*face*smoothstep(0.59,0.26,rad) * vec3(0.09,0.10,0.105);', /* brake disc behind */
+    '    float lip = smoothstep(0.606,0.647,rad) * smoothstep(0.724,0.670,rad);',
+    '    float hub = smoothstep(0.188,0.129,rad);',
+    '    col += (lip*0.55 + hub*0.38) * vec3(0.30,0.34,0.36);',
+    '    col += smoothstep(0.088,0.047,abs(rad-0.112)) * smoothstep(0.90,0.98,lobe) * vec3(0.20,0.22,0.23);',
     /* the brand green lives here now — a caliper glimpsed between the spokes,
        which is where a colour like this actually appears on a car */
-    '    float cal = smoothstep(0.040,0.022,abs(rad-0.165))',
+    '    float cal = smoothstep(0.118,0.065,abs(rad-0.485))',
     '              * smoothstep(-0.55,-0.20,ang) * smoothstep(0.55,0.20,ang);',
     '    col = mix(col, vec3(0.42,0.72,0.16), cal*face*0.85);',
     '  }',
     /* tyre: a shoulder where the sidewall turns, and tread on the crown */
     '  if (vPart > 0.5 && vPart < 1.5){',
-    '    vec2 w = vec2(abs(vM.x) - 1.42, vM.y - 0.34);',
-    '    float rad = length(w); float ang = atan(w.y, w.x);',
-    '    col *= 0.84 + 0.16*smoothstep(0.26,0.33,rad);',
-    '    col *= 1.0 + 0.05*smoothstep(0.305,0.335,rad)*sin(ang*70.0);',
+    '    vec2 w = vec2(abs(vM.x) - WHEEL_X, vM.y - WHEEL_Y);',
+    '    float rad = length(w)/WHEEL_R; float ang = atan(w.y, w.x);',
+    '    col *= 0.84 + 0.16*smoothstep(0.800,0.975,rad);',
+    '    col *= 1.0 + 0.05*smoothstep(0.905,0.985,rad)*sin(ang*80.0);',
     '  }',
 
     /* ---- body panel work ---- */
@@ -181,8 +190,8 @@
     '    col *= 1.0 - 0.42*smoothstep(0.37,0.27,vM.y)*side;',         /* rocker in shadow */
     /* wheel-arch lip: without it the tyres look like they pass through the
        bodywork rather than sitting inside an opening */
-    '    float ar = length(vec2(abs(vM.x)-1.42, vM.y-0.34));',
-    '    col *= 1.0 - 0.55*smoothstep(0.355,0.395,ar)*smoothstep(0.455,0.405,ar)*side;',
+    '    float ar = length(vec2(abs(vM.x)-WHEEL_X, vM.y-WHEEL_Y))/WHEEL_R;',
+    '    col *= 1.0 - 0.72*smoothstep(1.00,1.07,ar)*smoothstep(1.34,1.12,ar)*side;',
     /* shoulder crease running the length of the flank */
     '    col += 0.05*smoothstep(0.030,0.004,abs(vM.y-(vGlass-0.26)))*side;',
     '  }',
@@ -227,7 +236,11 @@
     '  float a = 1.0;',
     '  if (uMirror > 0.5){ float fade = clamp(1.0 + vW.y/1.5, 0.0, 1.0); fade *= fade; col *= 0.42*fade; a = 0.85*fade; }',
     '  gl_FragColor = vec4(col*a, a); }'
-  ].join('\n');
+  ].join('\n')
+    .replace(/WHEEL_X/g, WHEEL.x.toFixed(4))
+    .replace(/WHEEL_Y/g, WHEEL.r.toFixed(4))
+    .replace(/WHEEL_Z/g, WHEEL.z.toFixed(4))
+    .replace(/WHEEL_R/g, WHEEL.r.toFixed(4));
 
   function compile(type, src){
     var sh = gl.createShader(type); gl.shaderSource(sh, src); gl.compileShader(sh);
@@ -274,8 +287,12 @@
        deck. The single bell curve this replaces is exactly what made the car
        read as a jellybean however well it was lit — no amount of shading
        fixes a silhouette. +x is the nose. */
-    var ys = 0.66 + 0.22*Math.exp(-Math.pow(x/1.9,2)) - 0.03*(x/X1);
-    var sig = x > -0.35 ? 1.18 : 0.88;
+    var ys = 0.745 + 0.185*Math.exp(-Math.pow(x/1.9,2)) - 0.03*(x/X1);
+    /* A Sportback's roof does NOT drop away behind the rear seats — it runs
+       on and tapers into the tail. The original had the rear falling FASTER
+       than the windscreen rose (0.88 against 1.18), which is a notchback. The
+       two are swapped: a steeper screen, then a long fastback roofline. */
+    var sig = x > -0.35 ? 1.18 : 0.92;
     var bell = Math.exp(-Math.pow((x+0.35)/sig, 4));
     /* Clipping the top of the bell flattens the dome into a roof plane while
        leaving the windscreen and rear-screen ramps exactly as they were.
@@ -283,8 +300,10 @@
        worse — a slab bonnet and a limousine roof — because a car's roof is
        also crowned and its greenhouse tapers in plan. This keeps the curve
        that was working and only takes the peak off it. */
-    var h = ys + 0.04 + 0.46*Math.min(1.0, bell*1.22);
-    var w = 0.92 - 0.10*Math.pow(x/X1, 4);
+    /* shallower glasshouse over a wider body — the low, planted look the
+       reference car has, rather than a tall cabin on a narrow shell */
+    var h = ys + 0.04 + 0.44*Math.min(1.0, bell*1.22);
+    var w = 1.00 - 0.11*Math.pow(x/X1, 4);
     var capW = 0.32, s = 1;
     if (ax > X1-capW){ var t=(ax-(X1-capW))/capW; s = Math.max(Math.sqrt(Math.max(0,1-t*t)), 0.03); }
     var pts = [], k, t2;
@@ -314,15 +333,21 @@
       rows.push(ring); }
     grid(rows, false, part, null, function(p){ return [cx, cy, cz]; });
   }
-  [[-1.42, 0.88],[-1.42,-0.88],[1.42,0.88],[1.42,-0.88]].forEach(function(wp){
-    var sign = wp[1] > 0 ? 1 : -1, cx = wp[0], cz = wp[1], cy = 0.34;
-    revolve([[0.23,-0.17],[0.30,-0.16],[0.335,-0.10],[0.34,0],[0.335,0.10],[0.30,0.16],[0.23,0.17]], cx, cy, cz, sign, 1, 40);
-    revolve([[0.0,0.13],[0.15,0.15],[0.215,0.158],[0.23,0.145],[0.235,0.12]], cx, cy, cz, sign, 2, 40);
-    revolve([[0.0,-0.13],[0.22,-0.14]], cx, cy, cz, sign, 2, 24);
+  /* The wheel profiles below were drawn for a 0.34 radius. Scaling the radii
+     and the widths separately is deliberate: a performance car's wheels grow
+     in diameter far more than in track, and scaling both equally pushed the
+     tyres proud of the arches. */
+  var wsR = WHEEL.r/0.34, wsZ = 1.12;
+  function wsc(prof){ return prof.map(function(q){ return [q[0]*wsR, q[1]*wsZ]; }); }
+  [[-WHEEL.x, WHEEL.z],[-WHEEL.x,-WHEEL.z],[WHEEL.x, WHEEL.z],[WHEEL.x,-WHEEL.z]].forEach(function(wp){
+    var sign = wp[1] > 0 ? 1 : -1, cx = wp[0], cz = wp[1], cy = WHEEL.r;
+    revolve(wsc([[0.23,-0.17],[0.30,-0.16],[0.335,-0.10],[0.34,0],[0.335,0.10],[0.30,0.16],[0.23,0.17]]), cx, cy, cz, sign, 1, 44);
+    revolve(wsc([[0.0,0.13],[0.15,0.15],[0.215,0.158],[0.23,0.145],[0.235,0.12]]), cx, cy, cz, sign, 2, 44);
+    revolve(wsc([[0.0,-0.13],[0.22,-0.14]]), cx, cy, cz, sign, 2, 24);
     /* The outer rim lip is polished metal, not a lime ring: a glowing hoop
        around each wheel read as underglow rather than as a wheel. The brand
        colour moves to the brake caliper, carved in the fragment shader. */
-    revolve([[0.235,0.12],[0.255,0.15],[0.245,0.175],[0.225,0.165]], cx, cy, cz, sign, 2, 40);
+    revolve(wsc([[0.235,0.12],[0.255,0.15],[0.245,0.175],[0.225,0.165]]), cx, cy, cz, sign, 2, 44);
   });
   /* Door mirrors. Small, but nothing else on the model says "car" as quickly
      — a body without them reads as a concept sketch. Lofted outward in z from
