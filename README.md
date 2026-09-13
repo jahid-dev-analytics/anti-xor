@@ -68,8 +68,8 @@ a redeploy, and a pageview can never be counted twice.
 
 | Thing | ID |
 | --- | --- |
-| GTM container | `GTM-PLACEHOLDER` |
-| GA4 measurement ID | `G-PLACEHOLDER` (fires from inside GTM) |
+| GTM container | `GTM-M2H2DGDC` |
+| GA4 measurement ID | `G-ZS79L6JPKC` (fires from inside GTM) |
 
 To verify the chain in the browser's Network tab: `gtm.js?id=GTM-…` should load,
 and it in turn should load `gtag/js?id=G-…&cx=c&gtm=…`. That `&gtm=` parameter is
