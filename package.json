@@ -5,6 +5,7 @@
   "description": "Anti-xor — a scroll-driven premium car-rental concept site with a real-time WebGL car.",
   "scripts": {
     "dev": "wrangler pages dev public --port 4180",
-    "deploy": "wrangler pages deploy public --project-name anti-xor"
+    "deploy": "wrangler pages deploy public --project-name anti-xor",
+    "frames": "node tools/turntable/render.mjs 24"
   }
 }

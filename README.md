@@ -1,8 +1,9 @@
 # Anti-xor
 
 A scroll-driven landing page for a **premium car-rental concept brand**. The hero
-car is not a picture — it is a car built out of maths at page load (WebGL), lit by
-a hand-written shader, and turned a full 360° by the scroll position.
+car is a 24-frame turntable, rendered ahead of time from a model built out of
+maths and lit by a hand-written shader, and turned a full 360° by the scroll
+position.
 
 > **This is a concept site.** The vehicles, prices, testimonials and booking form
 > are samples shown for layout. Nothing on the page takes a real booking or a
@@ -19,7 +20,8 @@ public/                 everything that ships — and nothing else
   index.html            the whole page (six "acts", one scroll)
   404.html
   css/site.css          all styling, including the reduced-motion fallback
-  js/scene.js           skyline generator + WebGL car + the scroll score
+  js/scene.js           skyline, the turntable player and the scroll score
+  assets/car/*.webp     24 turntable frames (sm/ is the phone set)
   assets/fleet/*.jpg    the five fleet-card photographs
   assets/og.png         1200×630 social preview card
   assets/apple-touch-icon.png
@@ -29,7 +31,7 @@ public/                 everything that ships — and nothing else
   site.webmanifest
   _headers              security headers, CSP and cache rules for Cloudflare
 wrangler.toml           Cloudflare Pages project config
-package.json            two scripts: dev and deploy
+package.json            dev, deploy and frames
 ```
 
 `public/` exists on purpose. `wrangler pages deploy` uploads *everything* in the
@@ -43,7 +45,7 @@ The page is one document divided into six sections, each with a job:
 | Act | Section | Technique |
 | --- | --- | --- |
 | 1 | Hero | four background planes at different parallax speeds |
-| 2 | The turn | the WebGL car spins 360° scrubbed by scroll |
+| 2 | The turn | the car turns a full 360°, one frame per scroll step |
 | 3 | Fleet | a horizontal track panned in 3D as you scroll down |
 | 4 | Proof | a clip-path wipe plus staggered feature reveals |
 | 5 | Voices | pointer-tracked card tilt |
@@ -52,8 +54,8 @@ The page is one document divided into six sections, each with a job:
 `js/scene.js` runs a single `requestAnimationFrame` loop. It reads
 `window.scrollY` once per frame, converts it into a progress value per section,
 and interpolates towards the target values — so the car eases instead of
-snapping. The canvas hides itself once act 2 has scrolled past, so the GPU is
-idle for the rest of the page.
+snapping. The canvas hides itself once act 2 has scrolled past, so nothing is
+drawn for the rest of the page.
 
 **Reduced motion is a first-class path, not a disabled one.** With
 `prefers-reduced-motion: reduce` the `html.rm` rules collapse every tall
@@ -119,6 +121,44 @@ npm run deploy       # wrangler pages deploy public --project-name anti-xor
 
 Every deploy also gets its own immutable preview URL, so a bad deploy is a
 matter of promoting the previous one rather than fixing forward.
+
+## The hero car
+
+The car is a **turntable**: 24 frames around a full 360°, picked by scroll
+position. It used to be built and lit in WebGL on every visit; the frames are
+rendered from that same model ahead of time instead.
+
+Rendering offline buys one thing realtime could not — the car is drawn at twice
+the final size and downscaled, so the edges are clean without costing a frame
+budget. It also means every visitor sees exactly the same picture, on any GPU,
+with no WebGL support to fall back from.
+
+```bash
+npm run frames          # node tools/turntable/render.mjs 24
+```
+
+That drives headless Chrome over the DevTools Protocol — not `chrome
+--screenshot`, which cannot emit WebP and paints nothing after a programmatic
+scroll — and writes:
+
+| | |
+| --- | --- |
+| `public/assets/car/f00–f23.webp` | 1200×720, ~1.2 MB the set |
+| `public/assets/car/sm/f00–f23.webp` | 600×360, ~490 KB the set |
+
+Frames carry an **alpha channel**, so the skyline shows through exactly as the
+canvas did. The page loads frame 0 immediately and the other 23 after `load`,
+so the turntable never competes with the first screen. Phones take the small
+set; the breakpoint is the same 820px the stylesheet uses.
+
+The model that produces them lives in `tools/turntable/car.js` — the geometry
+and the shader, lifted out of the page unchanged. **It is build-time source and
+is never served.** Changing the car means editing that file and re-running
+`npm run frames`.
+
+**The cost is honest:** the page ships roughly 1.2 MB of car on desktop where it
+used to ship 20 KB of shader. Fewer frames is the dial — 16 still reads as
+smooth and would cut it by a third.
 
 ## Photography
 

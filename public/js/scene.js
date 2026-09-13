@@ -33,362 +33,46 @@
   skyline(document.getElementById('skyFar'), 0, 60, 200, '#141c1a', false, 7);
   skyline(document.getElementById('skyNear'), 0, 40, 260, '#0A100E', true, 23);
 
-  /* ---------------- WebGL car ---------------- */
+  /* ---------------- hero car: a pre-rendered turntable ----------------
+     The car used to be built, lit and rasterised in WebGL on every visit. It
+     is now 24 frames rendered ahead of time by tools/turntable — the same
+     model, but drawn at twice the size and downscaled, which no realtime
+     frame budget would have allowed. The scroll still turns it a full 360°;
+     it picks a frame instead of a camera angle.
+
+     The frames carry an alpha channel, so the skyline still shows through,
+     and they are drawn into the same fixed canvas the WebGL used — nothing
+     else on the page had to move. */
   var canvas = document.getElementById('gl');
-  var gl = canvas.getContext('webgl', { antialias:true, alpha:true, premultipliedAlpha:true });
-  var GL = !!gl;
+  var ctx = canvas.getContext('2d');
+  var FRAMES = 24, FRAME_AR = 720/1200;
+  var frames = new Array(FRAMES);
 
-  var VS = [
-    'attribute vec3 aPos; attribute vec3 aNor; attribute float aGlass; attribute float aPart;',
-    'uniform mat4 uProj, uView, uModel; uniform mat3 uNormal;',
-    'varying vec3 vW, vN, vM; varying float vGlass, vPart;',
-    'void main(){ vec4 w = uModel*vec4(aPos,1.0); vW = w.xyz; vN = normalize(uNormal*aNor); vM = aPos; vGlass = aGlass; vPart = aPart;',
-    '  gl_Position = uProj*uView*w; }'
-  ].join('\n');
-
-  var FS = [
-    '#ifdef GL_FRAGMENT_PRECISION_HIGH', 'precision highp float;', '#else', 'precision mediump float;', '#endif',
-    'varying vec3 vW, vN, vM; varying float vGlass, vPart;',
-    'uniform vec3 uCam; uniform float uHead, uMirror, uStudio;',
-    /* The car is very nearly all reflection, so this function is most of what
-       decides whether the paint looks photographed or drawn. The old version
-       banded purely on R.y, which gave soft horizontal smears. A real studio
-       hangs long, hard-edged softboxes ABOVE the car, running its length; the
-       crisp strips they leave down the flanks are the single strongest cue
-       that a surface is lacquered metal.
-       Projecting the reflected ray onto the ceiling plane (z/y) is what makes
-       those strips run along the body instead of wrapping around it. */
-    'vec3 env(vec3 R){',
-    '  float y = R.y;',
-    '  float t = R.z / max(abs(y), 0.12);',            /* where the ray meets the ceiling */
-    '  float up = smoothstep(0.02,0.30,y);',
-    '  vec3 c = mix(vec3(0.0035,0.0055,0.0052), vec3(0.020,0.030,0.028), smoothstep(-0.7,0.9,y));',
-    /* city glow sitting on the horizon, warm, killed off in the studio act */
-    '  float hz = exp(-pow(y*15.0,2.0));',
-    '  c += hz * vec3(0.95,0.55,0.28) * (0.45+0.55*R.x) * 0.42 * (1.0-0.65*uStudio);',
-    /* three overhead softboxes: one over the spine, one each side */
-    '  float k1 = smoothstep(0.20,0.07,abs(t-0.62)) * up;',
-    '  float k2 = smoothstep(0.20,0.07,abs(t+0.62)) * up;',
-    '  float k3 = smoothstep(0.17,0.07,abs(t)) * smoothstep(0.45,0.80,y);',
-    '  c += (k1+k2)*1.9*vec3(0.96,1.0,0.97)*(0.40+1.05*uStudio);',
-    '  c += k3*1.15*vec3(0.97,1.0,0.98)*(0.35+1.00*uStudio);',
-    /* green bounce off one wall, warm bounce off the floor on the other side */
-    '  c += smoothstep(0.06,0.14,y)*smoothstep(0.44,0.34,y)*smoothstep(0.0,0.7,-R.z)',
-    '       * vec3(0.40,0.50,0.54) * (0.45+0.60*uStudio);',
-    '  c += smoothstep(-0.06,0.02,y)*smoothstep(0.22,0.13,y)*smoothstep(0.0,0.6,R.z)',
-    '       * vec3(1.0,0.82,0.62) * 0.40;',
-    /* the floor the car stands on, darkening away from it */
-    '  c *= 1.0 - 0.55*smoothstep(-0.10,-0.55,y);',
-    '  return c; }',
-    'void main(){',
-    '  if (vPart > 8.5){',   /* contact shadow quad */
-    '    float d = length(vec2(vM.x/2.6, vM.z/1.15));',
-    '    float a = 0.72*(1.0-smoothstep(0.30,1.0,d));',
-    /* A car does not float on one soft oval: each tyre presses a small, much
-       darker patch into the ground, and that contact is what sells the weight. */
-    '    vec2 q = vec2((abs(vM.x)-1.42)/0.40, (abs(vM.z)-0.88)/0.30);',
-    '    a = max(a, 0.94*(1.0-smoothstep(0.35,1.05,length(q))));',
-    '    gl_FragColor = vec4(0.0,0.0,0.0,a); return; }',
-    '  vec3 N = normalize(vN); vec3 V = normalize(uCam - vW);',
-    '  if (dot(N,V) < 0.0) N = -N;',
-    '  float NdV = max(dot(N,V), 0.0);',
-    '  vec3 base; float rough; float metal; float f0;',
-    /* A greenhouse with no pillars reads as a bubble canopy, so the A, B and C
-       pillars are painted back in: bands of x, on the sides only, where the
-       glass reverts to body paint. Across the roof they must not appear, or
-       they become stripes. */
-    '  float pillarSide = smoothstep(0.34,0.60,abs(vM.z));',
-    '  float pillar = pillarSide * max(max(',
-    '      smoothstep(0.085,0.038,abs(vM.x-0.50)),',
-    '      smoothstep(0.058,0.022,abs(vM.x+0.12))),',
-    '      smoothstep(0.095,0.042,abs(vM.x+0.90)));',
-    '  bool glass = (vPart < 0.5) && (vM.y > vGlass) && (pillar < 0.5);',
-    '  bool post = (vPart < 0.5) && (vM.y > vGlass) && (pillar >= 0.5);',
-    '  if (vPart < 0.5){',
-    /* metal 0.9 on glass turned the cabin into a mirrored dome; real glazing
-       is far less reflective and much darker than the paint around it */
-    '    if (glass){ base = vec3(0.003,0.005,0.006); rough = 0.14; metal = 0.16; f0 = 0.045; }',
-    /* pillars in gloss black rather than body colour: it is what modern cars
-       do, and it separates the glass from the roof far more crisply */
-    '    else if (post){ base = vec3(0.006,0.008,0.008); rough = 0.20; metal = 0.25; f0 = 0.05; }',
-    '    else { base = vec3(0.335,0.362,0.410); rough = 0.20; metal = 0.30; f0 = 0.085; }',
-    '  } else if (vPart < 1.5){ base = vec3(0.055,0.06,0.056); rough = 0.9; metal = 0.0; f0 = 0.03; }',
-    '  else if (vPart < 2.5){ base = vec3(0.13,0.145,0.135); rough = 0.34; metal = 0.85; f0 = 0.35; }',
-    '  else { base = vec3(0.77,0.96,0.35); rough = 0.5; metal = 0.2; f0 = 0.1; }',
-    '  vec3 L1 = normalize(vec3(0.55,0.75,0.6)); vec3 C1 = vec3(1.0,0.93,0.86)*0.80;',
-    '  vec3 L2 = normalize(vec3(-0.7,0.45,-0.55)); vec3 C2 = vec3(0.62,0.72,0.80)*0.55;',
-    '  vec3 diff = base * (1.0-metal) * (max(dot(N,L1),0.0)*C1 + max(dot(N,L2),0.0)*C2 + 0.38*env(N));',
-    '  float shin = mix(300.0, 6.0, rough);',
-    '  vec3 H1 = normalize(L1+V); vec3 H2 = normalize(L2+V);',
-    '  float F = f0 + (1.0-f0)*pow(1.0-NdV, 5.0);',
-    '  vec3 spec = (pow(max(dot(N,H1),0.0),shin)*C1 + pow(max(dot(N,H2),0.0),shin)*C2) * (F*(1.0-rough*0.5)+0.05);',
-    '  vec3 R = reflect(-V, N);',
-    '  vec3 refl = env(R) * mix(F, 1.0, metal) * (1.0 - rough*0.75);',
-    /* Clearcoat. Car paint is lacquer over colour, so the sharp highlight
-       riding on top of the soft one is most of what says "painted metal"
-       rather than "plastic". */
-    '  if (vPart < 0.5 && !glass){',
-    '    float cc = pow(max(dot(N,H1),0.0),900.0)*1.7 + pow(max(dot(N,H2),0.0),900.0)*0.8;',
-    '    spec += cc * vec3(1.0,0.98,0.94) * (0.05 + 0.95*F);',
-    '  }',
-    /* The studio strips in env() are what light the paint, but reflected off
-       the windscreen at full strength they smear the whole cabin white. Glass
-       keeps a much weaker, more contrasty reflection. */
-    '  if (glass) refl *= 0.42;',
-    '  vec3 col = diff + spec + refl;',
-    '  if (glass) col *= 0.62;',
-    '  if (vPart < 0.5 && !glass && !post){ col += pow(1.0-NdV, 3.0) * vec3(0.72,0.80,0.86) * 0.10; }',
-    '  if (vPart > 2.5){ col += base*0.9; }',
-
-    /* ---- alloy wheel, carved in the rim's own polar coordinates ----
-       Both wheels on an axle sit at x = ±1.42, y = 0.34, so |x|-1.42 and
-       y-0.34 give the same local frame for all four without a uniform. */
-    '  if (vPart > 1.5 && vPart < 2.5){',
-    '    vec2 w = vec2(abs(vM.x) - 1.42, vM.y - 0.34);',
-    '    float rad = length(w); float ang = atan(w.y, w.x);',
-    '    float lobe = abs(cos(ang*2.5));',           /* five spokes */
-    '    float gap  = smoothstep(0.76,0.50,lobe);',
-    '    float face = smoothstep(0.050,0.068,rad) * smoothstep(0.214,0.196,rad);',
-    '    col = mix(col, vec3(0.018,0.022,0.022), gap*face);',       /* voids */
-    '    col += gap*face*smoothstep(0.20,0.09,rad) * vec3(0.09,0.10,0.105);', /* brake disc behind */
-    '    float lip = smoothstep(0.206,0.220,rad) * smoothstep(0.246,0.228,rad);',
-    '    float hub = smoothstep(0.064,0.044,rad);',
-    '    col += (lip*0.60 + hub*0.40) * vec3(0.30,0.34,0.32);',
-    '    col += smoothstep(0.030,0.016,abs(rad-0.038)) * smoothstep(0.82,0.95,lobe) * vec3(0.20,0.22,0.21);',
-    /* the brand green lives here now — a caliper glimpsed between the spokes,
-       which is where a colour like this actually appears on a car */
-    '    float cal = smoothstep(0.040,0.022,abs(rad-0.165))',
-    '              * smoothstep(-0.55,-0.20,ang) * smoothstep(0.55,0.20,ang);',
-    '    col = mix(col, vec3(0.42,0.72,0.16), cal*face*0.85);',
-    '  }',
-    /* tyre: a shoulder where the sidewall turns, and tread on the crown */
-    '  if (vPart > 0.5 && vPart < 1.5){',
-    '    vec2 w = vec2(abs(vM.x) - 1.42, vM.y - 0.34);',
-    '    float rad = length(w); float ang = atan(w.y, w.x);',
-    '    col *= 0.84 + 0.16*smoothstep(0.26,0.33,rad);',
-    '    col *= 1.0 + 0.05*smoothstep(0.305,0.335,rad)*sin(ang*70.0);',
-    '  }',
-
-    /* ---- body panel work ---- */
-    '  if (vPart < 0.5 && !glass){',
-    '    float side = smoothstep(0.46,0.76,abs(vM.z));',
-    '    float belt = smoothstep(0.30,0.38,vM.y) * smoothstep(vGlass+0.05,vGlass-0.12,vM.y);',
-    '    float cut  = min(abs(vM.x-0.36), abs(vM.x+0.60));',
-    '    col *= 1.0 - 0.62*smoothstep(0.020,0.004,cut)*side*belt;',   /* door shut lines */
-    '    float hx2 = min(abs(vM.x-0.02), abs(vM.x+0.96));',
-    '    col += smoothstep(0.11,0.05,hx2)*smoothstep(0.038,0.012,abs(vM.y-(vGlass-0.12)))',
-    '           * side * vec3(0.16,0.18,0.17);',                      /* door handles */
-    '    col *= 1.0 - 0.42*smoothstep(0.37,0.27,vM.y)*side;',         /* rocker in shadow */
-    /* wheel-arch lip: without it the tyres look like they pass through the
-       bodywork rather than sitting inside an opening */
-    '    float ar = length(vec2(abs(vM.x)-1.42, vM.y-0.34));',
-    '    col *= 1.0 - 0.55*smoothstep(0.355,0.395,ar)*smoothstep(0.455,0.405,ar)*side;',
-    /* shoulder crease running the length of the flank */
-    '    col += 0.05*smoothstep(0.030,0.004,abs(vM.y-(vGlass-0.26)))*side;',
-    '  }',
-    /* bright surround where the glass meets the body — a luxury-car cue */
-    '  if (vPart < 0.5 && vGlass < 90.0){',
-    '    col = mix(col, vec3(0.30,0.33,0.31),',
-    '      smoothstep(0.034,0.0,abs(vM.y - vGlass)) * 0.55 * smoothstep(0.42,0.70,abs(vM.z)));',
-    '  }',
-    /* head and tail lights carved by position */
-    '  if (vPart < 0.5){',
-    /* Headlights belong at the corners. Spanning most of the nose, as they
-       did, made one white bar across the whole front. */
-    '    float hz = smoothstep(0.50,0.61,abs(vM.z))*smoothstep(0.88,0.77,abs(vM.z));',
-    '    float hx = smoothstep(1.88,1.98,vM.x);',
-    '    float hy = smoothstep(0.520,0.556,vM.y)*smoothstep(0.648,0.612,vM.y);',
-    '    col += hx*hy*hz * vec3(0.95,1.0,0.96) * uHead * 3.0;',
-    /* a daytime-running strip under it, in the brand green */
-    '    float dy = smoothstep(0.478,0.497,vM.y)*smoothstep(0.520,0.501,vM.y);',
-    '    col += smoothstep(1.86,1.96,vM.x)*dy*hz * vec3(0.62,0.98,0.30) * (0.85+0.55*uHead);',
-    /* a grille between them, so the nose is not one blank surface */
-    '    col *= 1.0 - 0.50*smoothstep(1.90,2.00,vM.x)*smoothstep(0.50,0.38,abs(vM.z))',
-    '              * smoothstep(0.36,0.43,vM.y)*smoothstep(0.60,0.52,vM.y);',
-    /* shutline where the bonnet meets the base of the windscreen */
-    '    col *= 1.0 - 0.40*smoothstep(0.018,0.004,abs(vM.x-0.80))',
-    '              * smoothstep(0.60,0.28,abs(vM.z))*smoothstep(0.50,0.66,vM.y);',
-    /* one taillight bar across the tail rather than two vague patches */
-    '    float tx = smoothstep(-1.94,-2.04,vM.x);',
-    '    float ty = smoothstep(0.650,0.685,vM.y)*smoothstep(0.780,0.745,vM.y);',
-    '    col += tx*ty*smoothstep(0.92,0.84,abs(vM.z)) * vec3(1.0,0.13,0.08) * 1.6;',
-    '  }',
-    /* Ambient occlusion. Nothing gives a render away faster than a body that
-       is as bright at the sills as it is on the shoulder: in life the ground
-       and the car's own volume block most of the light down there. */
-    '  if (vPart < 2.5){ col *= mix(0.48, 1.0, smoothstep(0.05, 0.46, vM.y)); }',
-    /* Filmic curve rather than the old x/(x+k): it holds the highlights on the
-       softbox strips instead of flattening them to white. */
-    '  col = (col*(2.51*col+0.028))/(col*(2.43*col+0.59)+0.14);',
-    '  col = pow(col, vec3(0.96));',
-    /* A whisper of grain. Perfectly smooth gradients are the last thing that
-       reads as computer-generated; film and sensors both have noise. */
-    '  col += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898,78.233)))*43758.5453) - 0.5) * 0.014;',
-    '  float a = 1.0;',
-    '  if (uMirror > 0.5){ float fade = clamp(1.0 + vW.y/1.5, 0.0, 1.0); fade *= fade; col *= 0.42*fade; a = 0.85*fade; }',
-    '  gl_FragColor = vec4(col*a, a); }'
-  ].join('\n');
-
-  function compile(type, src){
-    var sh = gl.createShader(type); gl.shaderSource(sh, src); gl.compileShader(sh);
-    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) { console.error(gl.getShaderInfoLog(sh)); GL = false; }
-    return sh;
+  /* A phone never needs 1200px of car, and the half-size set costs a third of
+     what the full one does over a mobile connection. */
+  var SET = '/assets/car/' + (mobileQ.matches ? 'sm/' : '');
+  function frameSrc(i){ return SET + 'f' + (i < 10 ? '0' : '') + i + '.webp'; }
+  function load(i){
+    var im = new Image();
+    im.decoding = 'async';
+    im.src = frameSrc(i);
+    frames[i] = im;
   }
+  /* Frame 0 is the hero pose and is wanted immediately. The other 23 are not
+     needed until the visitor scrolls into the turn, and firing all of them at
+     once competes with the stylesheet and the fonts for the first screen — so
+     they wait for load, then go out in one burst while the hero is being read. */
+  load(0);
+  function loadRest(){ for (var i = 1; i < FRAMES; i++) load(i); }
+  if (document.readyState === 'complete') loadRest();
+  else window.addEventListener('load', loadRest);
 
-  /* ---- geometry ---- */
-  var P=[], Nn=[], Gl=[], Pt=[], I=[];
-  function v3(a,b){ return [a[0]-b[0],a[1]-b[1],a[2]-b[2]]; }
-  function cross(a,b){ return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
-  function norm(a){ var l=Math.hypot(a[0],a[1],a[2])||1; return [a[0]/l,a[1]/l,a[2]/l]; }
-  function dot(a,b){ return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
-
-  /* rows: array of rings, each ring an array of [x,y,z]; glassRows: per-row glass line; centerOf(pt,i) for outward test */
-  function grid(rows, wrapCols, part, glassRows, centerOf){
-    var R = rows.length, K = rows[0].length, base = P.length/3;
-    for (var i=0;i<R;i++) for (var j=0;j<K;j++){
-      var p = rows[i][j];
-      var i0 = Math.max(i-1,0), i1 = Math.min(i+1,R-1);
-      var j0 = wrapCols ? (j-1+K)%K : Math.max(j-1,0), j1 = wrapCols ? (j+1)%K : Math.min(j+1,K-1);
-      var ti = v3(rows[i1][j], rows[i0][j]), tj = v3(rows[i][j1], rows[i][j0]);
-      var n = norm(cross(tj, ti));
-      var c = centerOf(p, i);
-      if (dot(n, v3(p, c)) < 0) n = [-n[0],-n[1],-n[2]];
-      if (Math.hypot(n[0],n[1],n[2]) < 0.5) n = norm(v3(p,c));
-      if (Math.hypot(n[0],n[1],n[2]) < 0.5) n = [0,0,(p[2]-c[2]) < 0 ? -1 : 1];
-      P.push(p[0],p[1],p[2]); Nn.push(n[0],n[1],n[2]); Gl.push(glassRows ? glassRows[i] : 99); Pt.push(part);
-    }
-    var JK = wrapCols ? K : K-1;
-    for (i=0;i<R-1;i++) for (j=0;j<JK;j++){
-      var a = base+i*K+j, b = base+i*K+(j+1)%K, c2 = base+(i+1)*K+j, d = base+(i+1)*K+(j+1)%K;
-      I.push(a,c2,b, b,c2,d);
-    }
-  }
-
-  var X1 = 2.25;
-  function section(x){
-    var ax = Math.abs(x);
-    var y0 = 0.25 + 0.07*smooth((ax-1.5)/0.75);
-
-    /* A saloon is three boxes, not one dome: a bonnet plane, a raked
-       windscreen, a flat roof, then the rear screen dropping onto the boot
-       deck. The single bell curve this replaces is exactly what made the car
-       read as a jellybean however well it was lit — no amount of shading
-       fixes a silhouette. +x is the nose. */
-    var ys = 0.66 + 0.22*Math.exp(-Math.pow(x/1.9,2)) - 0.03*(x/X1);
-    var sig = x > -0.35 ? 1.18 : 0.88;
-    var bell = Math.exp(-Math.pow((x+0.35)/sig, 4));
-    /* Clipping the top of the bell flattens the dome into a roof plane while
-       leaving the windscreen and rear-screen ramps exactly as they were.
-       Rebuilding the section as three literal boxes was tried and looked far
-       worse — a slab bonnet and a limousine roof — because a car's roof is
-       also crowned and its greenhouse tapers in plan. This keeps the curve
-       that was working and only takes the peak off it. */
-    var h = ys + 0.04 + 0.46*Math.min(1.0, bell*1.22);
-    var w = 0.92 - 0.10*Math.pow(x/X1, 4);
-    var capW = 0.32, s = 1;
-    if (ax > X1-capW){ var t=(ax-(X1-capW))/capW; s = Math.max(Math.sqrt(Math.max(0,1-t*t)), 0.03); }
-    var pts = [], k, t2;
-    for (k=0;k<6;k++){ t2=k/5; pts.push([y0, -w + 2*w*t2]); }
-    for (k=1;k<=5;k++){ t2=k/5; pts.push([y0+(ys-y0)*t2, w*(1+0.035*Math.sin(Math.PI*t2)-0.04*t2)]); }
-    var wr = w*0.96;
-    for (k=1;k<=10;k++){ t2=k/10; var u=1-t2;
-      pts.push([u*u*ys + 2*u*t2*h + t2*t2*h, u*u*wr + 2*u*t2*(wr*0.72)]); }
-    for (k=1;k<=10;k++){ t2=k/10; u=1-t2;
-      pts.push([u*u*h + 2*u*t2*h + t2*t2*ys, -(2*u*t2*(wr*0.72) + t2*t2*wr)]); }
-    for (k=1;k<=4;k++){ t2=k/5; pts.push([ys+(y0-ys)*t2, -w*(1+0.035*Math.sin(Math.PI*(1-t2))-0.04*(1-t2))]); }
-    var cy = (y0+h)/2;
-    var ring = pts.map(function(p){ return [x, cy+(p[0]-cy)*s, p[1]*s]; });
-    /* glazing exists only where there is a cabin; 99 means "no glass here" */
-    return { ring: ring, glass: (bell > 0.3) ? ys + 0.035 : 99, cy: cy };
-  }
-  (function body(){
-    var SL = 120, rows = [], glass = [], cys = [];
-    for (var i=0;i<=SL;i++){ var x = -X1 + 2*X1*i/SL; var sc = section(x); rows.push(sc.ring); glass.push(sc.glass); cys.push(sc.cy); }
-    grid(rows, true, 0, glass, function(p,i){ return [p[0], cys[i], 0]; });
-  })();
-  function revolve(profile, cx, cy, cz, sign, part, segs){
-    var rows = [];
-    for (var a=0;a<=segs;a++){ var th = a/segs*Math.PI*2, ring = [];
-      for (var k=0;k<profile.length;k++){ var r = profile[k][0], z = profile[k][1]*sign;
-        ring.push([cx + r*Math.cos(th), cy + r*Math.sin(th), cz + z]); }
-      rows.push(ring); }
-    grid(rows, false, part, null, function(p){ return [cx, cy, cz]; });
-  }
-  [[-1.42, 0.88],[-1.42,-0.88],[1.42,0.88],[1.42,-0.88]].forEach(function(wp){
-    var sign = wp[1] > 0 ? 1 : -1, cx = wp[0], cz = wp[1], cy = 0.34;
-    revolve([[0.23,-0.17],[0.30,-0.16],[0.335,-0.10],[0.34,0],[0.335,0.10],[0.30,0.16],[0.23,0.17]], cx, cy, cz, sign, 1, 40);
-    revolve([[0.0,0.13],[0.15,0.15],[0.215,0.158],[0.23,0.145],[0.235,0.12]], cx, cy, cz, sign, 2, 40);
-    revolve([[0.0,-0.13],[0.22,-0.14]], cx, cy, cz, sign, 2, 24);
-    /* The outer rim lip is polished metal, not a lime ring: a glowing hoop
-       around each wheel read as underglow rather than as a wheel. The brand
-       colour moves to the brake caliper, carved in the fragment shader. */
-    revolve([[0.235,0.12],[0.255,0.15],[0.245,0.175],[0.225,0.165]], cx, cy, cz, sign, 2, 40);
-  });
-  /* Door mirrors. Small, but nothing else on the model says "car" as quickly
-     — a body without them reads as a concept sketch. Lofted outward in z from
-     a stalk at the base of the A-pillar to a flattened head; the first and
-     last rings are tiny so the open ends close up on themselves. */
-  function doorMirror(zs){
-    var K = 16, rows = [], path = [
-      /* z,    cx,   cy,    rx,    ry   */
-      [0.86, 0.60, 0.760, 0.012, 0.012],
-      [0.94, 0.62, 0.768, 0.030, 0.026],
-      [1.00, 0.65, 0.782, 0.034, 0.030],
-      [1.04, 0.70, 0.800, 0.090, 0.052],
-      [1.09, 0.72, 0.802, 0.094, 0.055],
-      [1.12, 0.72, 0.800, 0.022, 0.018]
-    ];
-    path.forEach(function(p){
-      var ring = [];
-      for (var k=0;k<K;k++){ var th = k/K*Math.PI*2;
-        ring.push([p[1] + p[3]*Math.cos(th), p[2] + p[4]*Math.sin(th), p[0]*zs]); }
-      rows.push(ring);
-    });
-    grid(rows, true, 0, null, function(pt,i){ return [path[i][1], path[i][2], path[i][0]*zs]; });
-  }
-  doorMirror(1); doorMirror(-1);
-
-  (function shadow(){
-    var base = P.length/3;
-    var q = [[-3.2,0.004,-1.7],[3.2,0.004,-1.7],[3.2,0.004,1.7],[-3.2,0.004,1.7]];
-    q.forEach(function(p){ P.push(p[0],p[1],p[2]); Nn.push(0,1,0); Gl.push(99); Pt.push(9); });
-    I.push(base,base+1,base+2, base,base+2,base+3);
-  })();
-
-  /* ---- matrices ---- */
-  function perspective(fov, aspect, n, f){ var t=1/Math.tan(fov/2), nf=1/(n-f);
-    return new Float32Array([t/aspect,0,0,0, 0,t,0,0, 0,0,(f+n)*nf,-1, 0,0,2*f*n*nf,0]); }
-  function lookAt(e, c, up){
-    var z = norm(v3(e,c)), x = norm(cross(up,z)), y = cross(z,x);
-    return new Float32Array([x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0,
-      -dot(x,e), -dot(y,e), -dot(z,e), 1]); }
-  function model(tx,ty,tz, ang, my){ var c=Math.cos(ang), s=Math.sin(ang);
-    return new Float32Array([c,0,-s,0, 0,my,0,0, s,0,c,0, tx,ty,tz,1]); }
-  function nmat(ang, my){ var c=Math.cos(ang), s=Math.sin(ang);
-    return new Float32Array([c,0,-s, 0,my,0, s,0,c]); }
-
-  var prog, loc = {}, idxCount = I.length, shadowStart = I.length-6;
-  if (GL){
-    prog = gl.createProgram();
-    gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
-    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { console.error(gl.getProgramInfoLog(prog)); GL = false; }
-  }
-  if (GL){
-    gl.useProgram(prog);
-    function attr(name, data, size){
-      var b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
-      var l = gl.getAttribLocation(prog, name); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, size, gl.FLOAT, false, 0, 0);
-    }
-    attr('aPos', P, 3); attr('aNor', Nn, 3); attr('aGlass', Gl, 1); attr('aPart', Pt, 1);
-    var ib = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib);
-    var ext = gl.getExtension('OES_element_index_uint');
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, ext ? new Uint32Array(I) : new Uint16Array(I), gl.STATIC_DRAW);
-    var itype = ext ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
-    ['uProj','uView','uModel','uNormal','uCam','uHead','uMirror','uStudio'].forEach(function(n){ loc[n] = gl.getUniformLocation(prog, n); });
-    gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-    gl.clearColor(0,0,0,0);
+  /* Frame 0 was rendered at this angle and the rest step evenly around from
+     it, so an angle maps straight to a frame with no lookup table. */
+  var BASE_ANG = -0.6;
+  function frameAt(ang){
+    var i = Math.round((ang - BASE_ANG) / (Math.PI * 2) * FRAMES) % FRAMES;
+    return frames[(i + FRAMES) % FRAMES];
   }
 
   var W=0, H=0, DPR=1, VH = window.innerHeight, VW = window.innerWidth;
@@ -401,7 +85,8 @@
     W = VW; H = VH;
     canvas.style.height = VH + 'px';
     canvas.width = Math.round(W*DPR); canvas.height = Math.round(H*DPR);
-    if (GL) gl.viewport(0,0,canvas.width,canvas.height);
+    /* scale once here so everything below can think in CSS pixels */
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   }
   lockViewport(); resize();
   var rsT;
@@ -414,30 +99,19 @@
   });
   window.addEventListener('orientationchange', function(){ setTimeout(function(){ lockViewport(); resize(); }, 300); });
 
-  var car = { x:1.95, ang:-0.6, camY:1.15, camZ:8.4, tgtY:0.55, head:0.7, studio:0, alpha:1 };
-  var cur = { ang:-0.6, x:1.95, camZ:8.4, tgtY:0.55, head:0.7 };
+  /* cx/cy are where the frame's centre sits as a fraction of the viewport,
+     wide is its width as a fraction of it — the same three numbers the camera
+     dolly used to produce, now applied to a picture. */
+  var car = { ang:BASE_ANG, cx:0.68, cy:0.54, wide:0.62 };
+  var cur = { ang:BASE_ANG, cx:0.68, cy:0.54, wide:0.62 };
 
   function draw(){
-    if (!GL) return;
-    var mob = mobileQ.matches, aspect = W/H;
-    var fov = mob ? 0.78 : 0.56;
-    var eye = [0.0, car.camY, cur.camZ], tgt = [0, cur.tgtY, 0];
-    var proj = perspective(fov, aspect, 0.1, 60), view = lookAt(eye, tgt, [0,1,0]);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.uniformMatrix4fv(loc.uProj, false, proj); gl.uniformMatrix4fv(loc.uView, false, view);
-    gl.uniform3fv(loc.uCam, eye); gl.uniform1f(loc.uHead, cur.head); gl.uniform1f(loc.uStudio, car.studio);
-    /* mirror */
-    gl.uniform1f(loc.uMirror, 1);
-    gl.uniformMatrix4fv(loc.uModel, false, model(cur.x,0,0,cur.ang,-1)); gl.uniformMatrix3fv(loc.uNormal, false, nmat(cur.ang,-1));
-    gl.drawElements(gl.TRIANGLES, shadowStart, itype, 0);
-    /* shadow */
-    gl.uniform1f(loc.uMirror, 0);
-    gl.depthMask(false);
-    gl.uniformMatrix4fv(loc.uModel, false, model(cur.x,0,0,cur.ang,1)); gl.uniformMatrix3fv(loc.uNormal, false, nmat(cur.ang,1));
-    gl.drawElements(gl.TRIANGLES, 6, itype, shadowStart*(ext?4:2));
-    gl.depthMask(true);
-    /* car */
-    gl.drawElements(gl.TRIANGLES, shadowStart, itype, 0);
+    ctx.clearRect(0, 0, W, H);
+    var img = frameAt(cur.ang);
+    /* a frame still in flight simply is not drawn; the next tick picks it up */
+    if (!img || !img.complete || !img.naturalWidth) return;
+    var w = W * cur.wide, h = w * FRAME_AR;
+    ctx.drawImage(img, cur.cx*W - w/2, cur.cy*H - h/2, w, h);
   }
 
   /* ---------------- scroll score ---------------- */
@@ -470,18 +144,15 @@
     var turn = acts.turn, p2 = progress(turn);
     var r2 = turn.getBoundingClientRect();
     turn.style.setProperty('--p', win(p2, 0.02, 0.2).toFixed(3));
-    var heroX = mob ? 0 : 1.95;
-    var heroTgtY = mob ? 3.9 : 0.55, heroZ = mob ? 14.0 : 8.4;
-    var inTurn = win(p2, 0, 0.14);
-    car.x = lerp(heroX, 0, smooth(inTurn));
-    car.tgtY = lerp(heroTgtY, mob ? 1.25 : 0.62, smooth(inTurn));
-    car.camZ = lerp(heroZ, mob ? 10.5 : 7.7, smooth(inTurn));
+    var inTurn = smooth(win(p2, 0, 0.14));
+    /* the hero holds the car off to the right of the copy; the turn brings it
+       to the middle and closer, which the camera dolly used to do */
+    car.cx   = lerp(mob ? 0.50 : 0.68, 0.50, inTurn);
+    car.cy   = lerp(mob ? 0.62 : 0.54, mob ? 0.52 : 0.52, inTurn);
+    car.wide = lerp(mob ? 1.00 : 0.62, mob ? 1.12 : 0.80, inTurn);
     var spin = smooth(win(p2, 0.12, 0.92));
-    car.ang = -0.6 + p1*0.25 + spin*Math.PI*2;
-    car.camY = 1.15 + Math.sin(spin*Math.PI)*0.45;
-    car.head = 0.55 + v*2.6 + 0.25*Math.max(0, Math.cos(car.ang+0.6)) ;
-    car.studio = win(p2, 0.0, 0.25);
-    if (RM){ car.ang = -0.6; car.x = heroX; car.head = 0.7; car.studio = 0; }
+    car.ang = BASE_ANG + p1*0.25 + spin*Math.PI*2;
+    if (RM){ car.ang = BASE_ANG; car.cx = mob ? 0.50 : 0.68; }
     var afterTurn = r2.bottom < vh ? clamp((vh - r2.bottom)/(vh*0.4), 0, 1) : 0;
     canvas.style.opacity = (1 - afterTurn).toFixed(2);
     canvas.style.visibility = afterTurn >= 1 ? 'hidden' : 'visible';
@@ -523,8 +194,10 @@
 
     /* smooth the car */
     var k = RM ? 1 : 0.16;
-    cur.ang = lerp(cur.ang, car.ang, k); cur.x = lerp(cur.x, car.x, k);
-    cur.camZ = lerp(cur.camZ, car.camZ, k); cur.tgtY = lerp(cur.tgtY, car.tgtY, k); cur.head = lerp(cur.head, car.head, 0.2);
+    cur.ang  = lerp(cur.ang,  car.ang,  k);
+    cur.cx   = lerp(cur.cx,   car.cx,   k);
+    cur.cy   = lerp(cur.cy,   car.cy,   k);
+    cur.wide = lerp(cur.wide, car.wide, k);
     if (afterTurn < 1) draw();
     requestAnimationFrame(tick);
   }
