@@ -1,9 +1,8 @@
 # Status — 13 Sep 2026
 
-A snapshot of where this project stands, so it can be picked up cold. Permanent
-facts (ids, architecture, how to deploy) live in [README.md](README.md); this
-file is only *what is done* and *what is left*. Delete it when the open items
-are closed.
+Where the project stands, so it can be picked up cold. Permanent facts (ids,
+architecture, how to deploy) live in [README.md](README.md); this file is only
+*what is done* and *what is left*. Delete it when the open items are closed.
 
 ---
 
@@ -11,132 +10,114 @@ are closed.
 
 | | Where | Verified how |
 | --- | --- | --- |
-| **Source on GitHub** | https://github.com/jahid-dev-analytics/anti-xor | pushed, working tree clean |
-| **Cloudflare Pages** | project `anti-xor` | `npm run deploy`; every deployment URL serves correctly |
-| **GTM** | `GTM-M2H2DGDC` | Version 2 "GA4 base tracking" **published**, not merely saved |
-| **GA4** | property `553887405`, `G-ZS79L6JPKC` | Realtime report returned 1 active user / 1 pageview |
-| **Search Console** | URL-prefix `https://anti-xor.pages.dev/` | auto-verified by the GTM method; sitemap submitted; home page queued for crawl |
-| **Fleet photographs** | `public/assets/fleet/*.jpg` | five night photos replacing the SVG cars; see README for sources |
-| **Phantom zone removed** | Cloudflare account | `deamyphotoghtaphy.com` deleted; the account now has zero zones |
+| **Live** | https://anti-xor.pages.dev | full audit: 0 console errors, 0 failed requests, 0 CSP violations |
+| **Source** | https://github.com/jahid-dev-analytics/anti-xor | pushed, working tree clean |
+| **Cloudflare Pages** | project `anti-xor` | `npm run deploy`; the apex tracks the newest deployment |
+| **GTM** | `GTM-M2H2DGDC` | Version 2 published, not merely saved |
+| **GA4** | property `553887405`, `G-ZS79L6JPKC` | Realtime report returns live pageviews |
+| **Search Console** | URL-prefix `https://anti-xor.pages.dev/` | verified by the GTM method; sitemap submitted |
+| **Hero car** | 24-frame turntable | three distinct angles captured through the turn, live |
+| **Fleet cards** | five night photographs | all five 200, credited in the README |
 
-The analytics chain was proven on the live page, not assumed —
-`Object.keys(window.google_tag_manager)` contained **both** `GTM-M2H2DGDC` and
-`G-ZS79L6JPKC`, and the `_ga_ZS79L6JPKC` cookie was set.
+### The last full audit
 
-### What was built from the artifact
+Run against the live site over CDP — console, network, CSP, layout and the
+analytics chain in one pass:
 
-The single-file artifact became a hostable site: HTML split from `css/site.css`
-and `js/scene.js` so both cache; full SEO head (canonical, Open Graph, Twitter,
-manifest, favicon); a generated 1200×630 `og.png`; a matching 404 page that
-returns a real 404; `robots.txt` and `sitemap.xml`; and `_headers` carrying CSP,
-nosniff, `X-Frame-Options: DENY`, referrer and permissions policy plus cache
-rules. Everything shippable sits in `public/`, so the README, tooling and `.git`
-cannot reach a deployment.
+```
+requests 37 · transfer 1505KB
+errors 0 · failed 0 · csp violations 0
+images without alt 0 · broken images 0 · dead anchors 0
+JSON-LD valid · one h1 · lang set · canonical + OG present
+GTM-M2H2DGDC + G-ZS79L6JPKC both live, _ga cookie set
+horizontal overflow at 375 / 820 / 1366: none
+```
 
-Two deliberate omissions, both to stay on the right side of Google:
+Also checked by hand: every shipped file returns 200, `/nope` returns a real
+404, reduced motion renders the whole page without the scroll-scrub, and a
+phone pulls **only** the small frame set (24/24 from `sm/`) while a desktop
+pulls only the full one.
 
-- **no review/rating JSON-LD** — the testimonials and the 4.9-star rating are
-  invented for layout, and marking up invented ratings is what earns a
-  structured-data manual action
-- **the footer says "Concept site"** in bold, so no visitor mistakes the sample
-  fleet, prices and reviews for a real rental business
-
----
-
-## 🔴 Open item 1 — `anti-xor.pages.dev` is serving a stale build
-
-**This is a Cloudflare-side fault, not a deployment mistake.** Every deployment
-is correct; the vanity hostname is bound to an old one and will not move.
-
-What the evidence shows:
-
-- deployment URLs serve the current build — `/assets/fleet/sports.jpg` → **200**
-- `anti-xor.pages.dev` → **404** for that same path
-- Cloudflare's own API and dashboard both report the newest deployment as
-  `canonical_deployment`, `latest_deployment`, environment *production*, and
-  `domains: ["anti-xor.pages.dev"]`
-- **not a response cache**: a `?cb=<random>` query changes nothing
-- **not one edge server**: forcing the apex hostname onto a different Cloudflare
-  anycast IP with `curl --resolve` returns the same stale build
-- **not one POP**: apex and deployment URL both answer from `DAC`
-- the build being served is the one from deployment `79c5a764` — identifiable by
-  its `_headers` (`max-age=3600`) and the absence of the hero scrim — **and that
-  deployment has since been deleted**. The hostname is pinned to something that
-  no longer exists.
-
-Tried and did not help: three fresh production deploys, ~45 minutes of waiting,
-and deleting the stuck deployment outright.
-
-**Meanwhile the site is viewable** at whichever deployment URL is newest —
-`npx wrangler pages deployment list --project-name anti-xor` prints them.
-
-**Next steps, in order of preference:**
-
-1. Wait. A binding to a deleted deployment should reconcile on its own.
-2. Raise it with Cloudflare support: project `anti-xor`, account
-   `e7ceb255da0b8e948ee088b6ce080a22` — "pages.dev subdomain is serving a
-   deleted deployment while the API reports the correct canonical deployment."
-3. Attach a custom domain (see below). A custom hostname is bound separately
-   from the `.pages.dev` subdomain, so it should route correctly and would make
-   this moot.
-
-Do **not** solve it by renaming the project. The canonical tag, the GA4 stream
-URL and the verified Search Console property all name `anti-xor.pages.dev`.
+`/404.html` answers 308 → `/404` → 200. That is Cloudflare Pages stripping the
+extension, not a fault; unmatched paths still get a real 404.
 
 ---
+
+## ⬜ Open item 1 — the car is not photoreal
+
+The turntable **mechanism** is finished and live. The frames in it are rendered
+from the site's own procedural car, so the picture quality is what it always
+was — what changed is that it is now rendered ahead of time, at twice the size
+and downscaled.
+
+Making it look like the silver reference car needs better *frames*, and every
+route to those needs something that is not in the repo:
+
+| Route | Blocked on |
+| --- | --- |
+| AI-generated turntable | Higgsfield credits — balance is **0** on the free plan |
+| Licensed stock turntable | a paid asset |
+| Real 3D model rendered offline | a photoreal sedan model with a usable licence |
+
+When frames exist, the swap is **files only**: drop 24 WebP frames into
+`public/assets/car/` (1200×720) and `public/assets/car/sm/` (600×360), named
+`f00`–`f23`, going once around. No code changes.
+
+A real manufacturer's car should not be copied badge-for-badge onto a rental
+brand's site — a generic silver performance saloon is the thing to aim for.
 
 ## ⬜ Open item 2 — custom domain
 
 **Blocked on one piece of information: which domain.** There is no registered
-domain on the account to attach — the only zone that existed was for a name
-nobody had registered, and it has now been deleted.
+domain on the account; the only zone that ever existed was for an unregistered
+name and has been deleted.
 
-Availability checked 13 Sep 2026:
+Availability checked 13 Sep 2026: `antixor.com` taken; `anti-xor.com`,
+`antixor.net`, `antixor.dev`, `antixor.app` and `driveantixor.com` all free.
 
-| Domain | |
-| --- | --- |
-| `antixor.com` | taken |
-| `anti-xor.com` | free |
-| `antixor.net` · `antixor.dev` · `antixor.app` | free |
-| `driveantixor.com` | free |
-
-**When a domain exists**, the swap is one command:
+When a domain exists:
 
 ```bash
 node tools/set-domain.mjs your-domain.com
 ```
 
-That rewrites the canonical tag, the OG/Twitter url + image tags, `robots.txt`,
-`sitemap.xml` and the README together — they have to agree, because a page that
+It rewrites the canonical tag, the OG/Twitter tags, `robots.txt`, `sitemap.xml`
+and the README together — they have to agree, because a page that
 canonicalises to a host it no longer serves tells Google to index the wrong
-domain. The script then prints the four steps that live outside this repo:
+domain. It then prints the four steps outside this repo: add the custom domain
+in Pages, set the GA4 stream URL, add and verify a new Search Console property,
+deploy.
 
-1. Cloudflare Pages → `anti-xor` → Custom domains → add it, wait for SSL
-2. GA4 → Admin → Data streams → "Anti-xor site" → set the stream URL
-3. Search Console → add the new URL-prefix property → verify → submit sitemap
-4. `npm run deploy`
+**Cloudflare Registrar** is the simplest place to buy: at-cost, and the domain
+lands in the same account so no nameserver change is needed.
 
-If buying: **Cloudflare Registrar** is simplest — at-cost pricing and the domain
-lands in the same account, so no nameserver change is needed.
+## ⬜ Open item 3 — page weight
+
+Desktop ships ~1.2 MB of turntable frames where it used to ship 20 KB of
+shader. Frame 0 loads immediately and the other 23 wait for the load event, so
+the first screen is not affected — but the total is what it is.
+
+The dial is the frame count: `npm run frames 16` still reads as smooth and cuts
+it by a third. Worth doing if the site ever has to answer to a performance
+budget.
 
 ---
 
 ## Notes for whoever picks this up
 
-- `wrangler pages project create` in wrangler 4.13x delegates to the new
-  Workers-based Pages and fails. `--force` is needed **once, at creation only** —
-  never again afterwards.
-- Headless **Edge** writes no screenshot file and reports no error. Use
-  `chrome.exe --headless=new --screenshot=<absolute path>` instead.
-- The Cloudflare dashboard's "Remove from Cloudflare" dialog keeps its Remove
-  button disabled until you **type the domain name** into a confirm field, and
-  that page ignores clicks sent by element reference — `hover` then click at real
-  coordinates. Both together are why the first removal attempts looked broken.
-- Search Console ownership rests on the GTM snippet staying in `<head>`. Remove
-  the snippet and the property silently loses verification.
+- `chrome --headless --screenshot` **paints nothing after a programmatic
+  scroll** — even a `position:fixed` element disappears. Anything that needs a
+  scrolled pose has to go through CDP, which also is the only way to get WebP
+  out of Chrome.
+- A `file://` URL containing **spaces** silently fails to load subresources.
+  Percent-encode it. And a page's own `<script src="/js/scene.js">` resolves to
+  the drive root under `file://` and takes the whole render down with it.
+- The Cloudflare dashboard keeps destructive buttons disabled until you type
+  the resource name into a confirm field, and it ignores clicks sent by element
+  reference — `hover` then click at real coordinates.
+- `wrangler pages project create` delegates to the Workers-based Pages and
+  fails; `--force` is needed **once, at creation only**.
+- Search Console ownership rests on the GTM snippet staying in `<head>`.
 - `css/site.css` and `js/scene.js` carry no content hash, so `_headers` keeps
-  them at `max-age=300, must-revalidate`. Raise it only if a build step ever
-  hashes the filenames.
-- Redesigning the car means re-splitting the artifact into `public/js/scene.js`
-  and `public/css/site.css` — republishing the artifact alone does not touch
-  this site.
+  them at `max-age=300, must-revalidate`. The frames and other assets are
+  content-stable and sit at a week.
