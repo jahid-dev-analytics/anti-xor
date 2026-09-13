@@ -10,11 +10,16 @@
   # injects; the page itself also carries a few inline style attributes.
   Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://tagmanager.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://tagmanager.google.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https://www.googletagmanager.com https://www.google-analytics.com https://ssl.gstatic.com https://www.gstatic.com; connect-src 'self' https://www.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://*.google-analytics.com https://www.googletagmanager.com https://stats.g.doubleclick.net; frame-src https://www.googletagmanager.com
 
+# site.css and scene.js are NOT content-hashed, so a long max-age means a deploy
+# keeps serving the old file until the cache ages out — which it did once, for a
+# full hour, on an otherwise correct deploy. Five minutes plus must-revalidate
+# keeps repeat views cheap (ETag -> 304) while a deploy shows up almost at once.
+# If a build step ever hashes these filenames, raise this to a year + immutable.
 /css/*
-  Cache-Control: public, max-age=3600
+  Cache-Control: public, max-age=300, must-revalidate
 
 /js/*
-  Cache-Control: public, max-age=3600
+  Cache-Control: public, max-age=300, must-revalidate
 
 /assets/*
   Cache-Control: public, max-age=604800
