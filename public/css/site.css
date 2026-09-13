@@ -102,7 +102,14 @@
   .fcard{width:min(320px,74vw);flex:none;background:var(--surface);border:1px solid var(--hair);border-radius:26px;padding:22px;transform-style:preserve-3d;will-change:transform;transition:background .3s}
   .fcard .art{height:170px;border-radius:18px;display:grid;place-items:center;overflow:hidden;position:relative;
     background:radial-gradient(80% 90% at 50% 100%,rgba(197,245,90,.16),transparent 70%),linear-gradient(180deg,#0e1a14,#0a120e)}
-  .fcard .art svg{width:86%;height:auto;filter:drop-shadow(0 18px 18px rgba(0,0,0,.5))}
+  /* Photographs, not illustrations. Stock car photography is shot brighter and
+     more saturated than this page's night palette, so it is graded down to sit
+     in the card instead of punching a hole in it. The selected card recovers
+     full brightness — the existing .is-on state, doing one more job. */
+  .fcard .art img{width:100%;height:100%;object-fit:cover;display:block;
+    filter:saturate(.78) contrast(1.06) brightness(.78);
+    transition:filter .35s ease,transform .55s cubic-bezier(.2,.7,.2,1)}
+  .fcard.is-on .art img{filter:saturate(.95) contrast(1.03) brightness(1);transform:scale(1.04)}
   .fcard .art::after{content:"";position:absolute;left:12%;right:12%;bottom:22px;height:2px;background:linear-gradient(90deg,transparent,rgba(197,245,90,.7),transparent)}
   .fcard h3{font-size:1.25rem;margin:18px 0 4px}
   .fcard .meta{display:flex;justify-content:space-between;align-items:center;color:var(--ink-soft);font-size:.86rem}

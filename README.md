@@ -20,6 +20,7 @@ public/                 everything that ships — and nothing else
   404.html
   css/site.css          all styling, including the reduced-motion fallback
   js/scene.js           skyline generator + WebGL car + the scroll score
+  assets/fleet/*.jpg    the five fleet-card photographs
   assets/og.png         1200×630 social preview card
   assets/apple-touch-icon.png
   favicon.svg
@@ -118,6 +119,33 @@ npm run deploy       # wrangler pages deploy public --project-name anti-xor
 
 Every deploy also gets its own immutable preview URL, so a bad deploy is a
 matter of promoting the previous one rather than fixing forward.
+
+## Photography
+
+The five fleet cards use real photographs from **Pexels**, whose licence allows
+commercial use with no attribution required. They are credited here anyway,
+because knowing where an asset came from is what lets the next person replace it.
+
+| Card | Pexels photo |
+| --- | --- |
+| Sports Cars | [27639768](https://www.pexels.com/photo/27639768/) |
+| SUVs | [19067088](https://www.pexels.com/photo/19067088/) |
+| Luxury Cars | [19273958](https://www.pexels.com/photo/19273958/) |
+| Electric Cars | [34400566](https://www.pexels.com/photo/34400566/) |
+| Vans & MPVs | [11336600](https://www.pexels.com/photo/11336600/) |
+
+They are served at 800×500 from `public/assets/fleet/`, self-hosted rather than
+hotlinked — the page's own CSP is `img-src 'self' data:`, so a remote image
+would simply not render. Each was cropped by the Pexels CDN before download
+(`?auto=compress&cs=tinysrgb&w=800&h=500&fit=crop`), which is why all five are
+around 30–55 KB instead of the 1 MB originals.
+
+Stock car photography is shot brighter and more saturated than this page's night
+palette, so `.fcard .art img` grades it down; the selected card recovers full
+brightness and scales slightly, giving the existing `.is-on` state a second job.
+
+**To swap one out:** drop a replacement at `public/assets/fleet/<name>.jpg` at
+the same 8:5 ratio and update the row above. No markup change needed.
 
 ## Licence / attribution
 
