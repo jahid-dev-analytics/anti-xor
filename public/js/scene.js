@@ -50,23 +50,44 @@
     '#ifdef GL_FRAGMENT_PRECISION_HIGH', 'precision highp float;', '#else', 'precision mediump float;', '#endif',
     'varying vec3 vW, vN, vM; varying float vGlass, vPart;',
     'uniform vec3 uCam; uniform float uHead, uMirror, uStudio;',
+    /* The car is very nearly all reflection, so this function is most of what
+       decides whether the paint looks photographed or drawn. The old version
+       banded purely on R.y, which gave soft horizontal smears. A real studio
+       hangs long, hard-edged softboxes ABOVE the car, running its length; the
+       crisp strips they leave down the flanks are the single strongest cue
+       that a surface is lacquered metal.
+       Projecting the reflected ray onto the ceiling plane (z/y) is what makes
+       those strips run along the body instead of wrapping around it. */
     'vec3 env(vec3 R){',
     '  float y = R.y;',
-    '  vec3 c = mix(vec3(0.010,0.016,0.014), vec3(0.05,0.08,0.07), smoothstep(-1.0,1.0,y));',
-    '  float hz = exp(-pow(y*13.0,2.0));',
-    '  c += hz * vec3(0.95,0.55,0.28) * (0.5+0.5*R.x) * 0.45 * (1.0-0.6*uStudio);',
-    '  float s1 = smoothstep(0.50,0.56,y)*smoothstep(0.74,0.68,y);',
-    '  float s2 = smoothstep(0.84,0.88,y)*smoothstep(0.99,0.95,y);',
-    '  c += (s1*1.3 + s2*0.9) * vec3(0.95,1.0,0.96) * (0.45+0.9*uStudio);',
-    '  float s3 = smoothstep(0.12,0.18,y)*smoothstep(0.40,0.34,y) * smoothstep(0.1,0.7,-R.z);',
-    '  c += s3 * vec3(0.62,0.95,0.35) * (0.7+0.8*uStudio);',
-    '  float s4 = smoothstep(-0.02,0.04,y)*smoothstep(0.16,0.10,y) * smoothstep(0.0,0.6,R.z);',
-    '  c += s4 * vec3(1.0,0.85,0.7) * 0.35;',
+    '  float t = R.z / max(abs(y), 0.12);',            /* where the ray meets the ceiling */
+    '  float up = smoothstep(0.02,0.30,y);',
+    '  vec3 c = mix(vec3(0.0035,0.0055,0.0052), vec3(0.020,0.030,0.028), smoothstep(-0.7,0.9,y));',
+    /* city glow sitting on the horizon, warm, killed off in the studio act */
+    '  float hz = exp(-pow(y*15.0,2.0));',
+    '  c += hz * vec3(0.95,0.55,0.28) * (0.45+0.55*R.x) * 0.42 * (1.0-0.65*uStudio);',
+    /* three overhead softboxes: one over the spine, one each side */
+    '  float k1 = smoothstep(0.20,0.07,abs(t-0.62)) * up;',
+    '  float k2 = smoothstep(0.20,0.07,abs(t+0.62)) * up;',
+    '  float k3 = smoothstep(0.17,0.07,abs(t)) * smoothstep(0.45,0.80,y);',
+    '  c += (k1+k2)*1.9*vec3(0.96,1.0,0.97)*(0.40+1.05*uStudio);',
+    '  c += k3*1.15*vec3(0.97,1.0,0.98)*(0.35+1.00*uStudio);',
+    /* green bounce off one wall, warm bounce off the floor on the other side */
+    '  c += smoothstep(0.06,0.14,y)*smoothstep(0.44,0.34,y)*smoothstep(0.0,0.7,-R.z)',
+    '       * vec3(0.55,0.90,0.35) * (0.55+0.75*uStudio);',
+    '  c += smoothstep(-0.06,0.02,y)*smoothstep(0.22,0.13,y)*smoothstep(0.0,0.6,R.z)',
+    '       * vec3(1.0,0.82,0.62) * 0.40;',
+    /* the floor the car stands on, darkening away from it */
+    '  c *= 1.0 - 0.55*smoothstep(-0.10,-0.55,y);',
     '  return c; }',
     'void main(){',
     '  if (vPart > 8.5){',   /* contact shadow quad */
     '    float d = length(vec2(vM.x/2.6, vM.z/1.15));',
-    '    float a = 0.85*(1.0-smoothstep(0.35,1.0,d));',
+    '    float a = 0.72*(1.0-smoothstep(0.30,1.0,d));',
+    /* A car does not float on one soft oval: each tyre presses a small, much
+       darker patch into the ground, and that contact is what sells the weight. */
+    '    vec2 q = vec2((abs(vM.x)-1.42)/0.40, (abs(vM.z)-0.88)/0.30);',
+    '    a = max(a, 0.94*(1.0-smoothstep(0.35,1.05,length(q))));',
     '    gl_FragColor = vec4(0.0,0.0,0.0,a); return; }',
     '  vec3 N = normalize(vN); vec3 V = normalize(uCam - vW);',
     '  if (dot(N,V) < 0.0) N = -N;',
@@ -90,13 +111,13 @@
     /* pillars in gloss black rather than body colour: it is what modern cars
        do, and it separates the glass from the roof far more crisply */
     '    else if (post){ base = vec3(0.006,0.008,0.008); rough = 0.20; metal = 0.25; f0 = 0.05; }',
-    '    else { base = vec3(0.040,0.085,0.062); rough = 0.22; metal = 0.55; f0 = 0.06; }',
+    '    else { base = vec3(0.028,0.058,0.043); rough = 0.19; metal = 0.66; f0 = 0.07; }',
     '  } else if (vPart < 1.5){ base = vec3(0.055,0.06,0.056); rough = 0.9; metal = 0.0; f0 = 0.03; }',
     '  else if (vPart < 2.5){ base = vec3(0.13,0.145,0.135); rough = 0.34; metal = 0.85; f0 = 0.35; }',
     '  else { base = vec3(0.77,0.96,0.35); rough = 0.5; metal = 0.2; f0 = 0.1; }',
-    '  vec3 L1 = normalize(vec3(0.55,0.75,0.6)); vec3 C1 = vec3(1.0,0.86,0.72)*1.15;',
+    '  vec3 L1 = normalize(vec3(0.55,0.75,0.6)); vec3 C1 = vec3(1.0,0.86,0.72)*0.92;',
     '  vec3 L2 = normalize(vec3(-0.7,0.45,-0.55)); vec3 C2 = vec3(0.55,0.85,0.55)*0.55;',
-    '  vec3 diff = base * (1.0-metal) * (max(dot(N,L1),0.0)*C1 + max(dot(N,L2),0.0)*C2 + 0.35*env(N));',
+    '  vec3 diff = base * (1.0-metal) * (max(dot(N,L1),0.0)*C1 + max(dot(N,L2),0.0)*C2 + 0.22*env(N));',
     '  float shin = mix(300.0, 6.0, rough);',
     '  vec3 H1 = normalize(L1+V); vec3 H2 = normalize(L2+V);',
     '  float F = f0 + (1.0-f0)*pow(1.0-NdV, 5.0);',
@@ -116,7 +137,7 @@
     '  if (glass) refl *= 0.42;',
     '  vec3 col = diff + spec + refl;',
     '  if (glass) col *= 0.62;',
-    '  if (vPart < 0.5 && !glass && !post){ col += pow(1.0-NdV, 3.0) * vec3(0.55,0.95,0.42) * 0.22; }',
+    '  if (vPart < 0.5 && !glass && !post){ col += pow(1.0-NdV, 3.0) * vec3(0.55,0.95,0.42) * 0.10; }',
     '  if (vPart > 2.5){ col += base*0.9; }',
 
     /* ---- alloy wheel, carved in the rim's own polar coordinates ----
@@ -192,8 +213,17 @@
     '    float ty = smoothstep(0.650,0.685,vM.y)*smoothstep(0.780,0.745,vM.y);',
     '    col += tx*ty*smoothstep(0.92,0.84,abs(vM.z)) * vec3(1.0,0.13,0.08) * 1.6;',
     '  }',
-    '  col = col/(col+vec3(0.9));',      /* soft tone map */
-    '  col = pow(col, vec3(0.92));',
+    /* Ambient occlusion. Nothing gives a render away faster than a body that
+       is as bright at the sills as it is on the shoulder: in life the ground
+       and the car's own volume block most of the light down there. */
+    '  if (vPart < 2.5){ col *= mix(0.48, 1.0, smoothstep(0.05, 0.46, vM.y)); }',
+    /* Filmic curve rather than the old x/(x+k): it holds the highlights on the
+       softbox strips instead of flattening them to white. */
+    '  col = (col*(2.51*col+0.028))/(col*(2.43*col+0.59)+0.14);',
+    '  col = pow(col, vec3(0.96));',
+    /* A whisper of grain. Perfectly smooth gradients are the last thing that
+       reads as computer-generated; film and sensors both have noise. */
+    '  col += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898,78.233)))*43758.5453) - 0.5) * 0.014;',
     '  float a = 1.0;',
     '  if (uMirror > 0.5){ float fade = clamp(1.0 + vW.y/1.5, 0.0, 1.0); fade *= fade; col *= 0.42*fade; a = 0.85*fade; }',
     '  gl_FragColor = vec4(col*a, a); }'
@@ -238,10 +268,22 @@
   function section(x){
     var ax = Math.abs(x);
     var y0 = 0.25 + 0.07*smooth((ax-1.5)/0.75);
+
+    /* A saloon is three boxes, not one dome: a bonnet plane, a raked
+       windscreen, a flat roof, then the rear screen dropping onto the boot
+       deck. The single bell curve this replaces is exactly what made the car
+       read as a jellybean however well it was lit — no amount of shading
+       fixes a silhouette. +x is the nose. */
     var ys = 0.66 + 0.22*Math.exp(-Math.pow(x/1.9,2)) - 0.03*(x/X1);
     var sig = x > -0.35 ? 1.18 : 0.88;
     var bell = Math.exp(-Math.pow((x+0.35)/sig, 4));
-    var h = ys + 0.04 + 0.46*bell;
+    /* Clipping the top of the bell flattens the dome into a roof plane while
+       leaving the windscreen and rear-screen ramps exactly as they were.
+       Rebuilding the section as three literal boxes was tried and looked far
+       worse — a slab bonnet and a limousine roof — because a car's roof is
+       also crowned and its greenhouse tapers in plan. This keeps the curve
+       that was working and only takes the peak off it. */
+    var h = ys + 0.04 + 0.46*Math.min(1.0, bell*1.22);
     var w = 0.92 - 0.10*Math.pow(x/X1, 4);
     var capW = 0.32, s = 1;
     if (ax > X1-capW){ var t=(ax-(X1-capW))/capW; s = Math.max(Math.sqrt(Math.max(0,1-t*t)), 0.03); }
@@ -256,6 +298,7 @@
     for (k=1;k<=4;k++){ t2=k/5; pts.push([ys+(y0-ys)*t2, -w*(1+0.035*Math.sin(Math.PI*(1-t2))-0.04*(1-t2))]); }
     var cy = (y0+h)/2;
     var ring = pts.map(function(p){ return [x, cy+(p[0]-cy)*s, p[1]*s]; });
+    /* glazing exists only where there is a cabin; 99 means "no glass here" */
     return { ring: ring, glass: (bell > 0.3) ? ys + 0.035 : 99, cy: cy };
   }
   (function body(){
