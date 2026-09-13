@@ -115,6 +115,18 @@
   .fcard .meta{display:flex;justify-content:space-between;align-items:center;color:var(--ink-soft);font-size:.86rem}
   .fcard .go{width:36px;height:36px;border-radius:999px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center}
   .fcard.is-on{background:var(--surface-2);border-color:rgba(197,245,90,.45)}
+  /* Without this a click on a card drags a text selection across the label
+     instead of registering as a press. */
+  .fcard{-webkit-user-select:none;user-select:none;text-align:left}
+  /* .is-on is scroll-driven — it marks whichever card is centred. .is-picked
+     is the one the visitor actually chose, and has to look different or the
+     click appears to do nothing. */
+  .fcard.is-picked{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .fcard.is-picked .go{transform:scale(1.12)}
+  .fcard .go{transition:transform .25s cubic-bezier(.2,.7,.2,1)}
+  .fcard .pick-flag{display:none;margin-top:10px;font-size:.78rem;color:var(--accent);
+    font-weight:700;letter-spacing:.04em}
+  .fcard.is-picked .pick-flag{display:block}
 
   /* ---------- act 4: proof (reveal + kinetic) ---------- */
   .proof{height:calc(var(--vh) * 2.3);background:var(--canvas)}

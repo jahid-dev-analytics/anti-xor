@@ -74,7 +74,7 @@
     '  c += k3*1.15*vec3(0.97,1.0,0.98)*(0.35+1.00*uStudio);',
     /* green bounce off one wall, warm bounce off the floor on the other side */
     '  c += smoothstep(0.06,0.14,y)*smoothstep(0.44,0.34,y)*smoothstep(0.0,0.7,-R.z)',
-    '       * vec3(0.55,0.90,0.35) * (0.55+0.75*uStudio);',
+    '       * vec3(0.40,0.50,0.54) * (0.45+0.60*uStudio);',
     '  c += smoothstep(-0.06,0.02,y)*smoothstep(0.22,0.13,y)*smoothstep(0.0,0.6,R.z)',
     '       * vec3(1.0,0.82,0.62) * 0.40;',
     /* the floor the car stands on, darkening away from it */
@@ -111,13 +111,13 @@
     /* pillars in gloss black rather than body colour: it is what modern cars
        do, and it separates the glass from the roof far more crisply */
     '    else if (post){ base = vec3(0.006,0.008,0.008); rough = 0.20; metal = 0.25; f0 = 0.05; }',
-    '    else { base = vec3(0.028,0.058,0.043); rough = 0.19; metal = 0.66; f0 = 0.07; }',
+    '    else { base = vec3(0.335,0.362,0.410); rough = 0.20; metal = 0.30; f0 = 0.085; }',
     '  } else if (vPart < 1.5){ base = vec3(0.055,0.06,0.056); rough = 0.9; metal = 0.0; f0 = 0.03; }',
     '  else if (vPart < 2.5){ base = vec3(0.13,0.145,0.135); rough = 0.34; metal = 0.85; f0 = 0.35; }',
     '  else { base = vec3(0.77,0.96,0.35); rough = 0.5; metal = 0.2; f0 = 0.1; }',
-    '  vec3 L1 = normalize(vec3(0.55,0.75,0.6)); vec3 C1 = vec3(1.0,0.86,0.72)*0.92;',
-    '  vec3 L2 = normalize(vec3(-0.7,0.45,-0.55)); vec3 C2 = vec3(0.55,0.85,0.55)*0.55;',
-    '  vec3 diff = base * (1.0-metal) * (max(dot(N,L1),0.0)*C1 + max(dot(N,L2),0.0)*C2 + 0.22*env(N));',
+    '  vec3 L1 = normalize(vec3(0.55,0.75,0.6)); vec3 C1 = vec3(1.0,0.93,0.86)*0.80;',
+    '  vec3 L2 = normalize(vec3(-0.7,0.45,-0.55)); vec3 C2 = vec3(0.62,0.72,0.80)*0.55;',
+    '  vec3 diff = base * (1.0-metal) * (max(dot(N,L1),0.0)*C1 + max(dot(N,L2),0.0)*C2 + 0.38*env(N));',
     '  float shin = mix(300.0, 6.0, rough);',
     '  vec3 H1 = normalize(L1+V); vec3 H2 = normalize(L2+V);',
     '  float F = f0 + (1.0-f0)*pow(1.0-NdV, 5.0);',
@@ -137,7 +137,7 @@
     '  if (glass) refl *= 0.42;',
     '  vec3 col = diff + spec + refl;',
     '  if (glass) col *= 0.62;',
-    '  if (vPart < 0.5 && !glass && !post){ col += pow(1.0-NdV, 3.0) * vec3(0.55,0.95,0.42) * 0.10; }',
+    '  if (vPart < 0.5 && !glass && !post){ col += pow(1.0-NdV, 3.0) * vec3(0.72,0.80,0.86) * 0.10; }',
     '  if (vPart > 2.5){ col += base*0.9; }',
 
     /* ---- alloy wheel, carved in the rim's own polar coordinates ----
@@ -541,6 +541,38 @@
     Array.prototype.forEach.call(quotes.children, function(c){ c.addEventListener('mouseleave', function(){ c.style.transform = ''; }); });
   }
 
-  /* fleet cards: tap selects */
-  fcards.forEach(function(c){ c.addEventListener('click', function(){ fcards.forEach(function(x){ x.classList.remove('is-on'); }); c.classList.add('is-on'); }); });
+  /* ---------------- act 3 · choosing a vehicle ----------------
+     These cards carry an arrow, so they promise to do something. They used to
+     only add .is-on — which the scroll loop above overwrites on the very next
+     frame, so a click had no visible effect at all. A choice now:
+       - sticks, in its own class the scroll loop does not touch
+       - names itself on the booking button, so the choice is carried forward
+       - takes the visitor to the booking form, which is the point of choosing
+  */
+  var chosen = null;
+  var bookForm = document.querySelector('.book form.bar');
+  var bookLabel = bookForm && bookForm.querySelector('.pill span');
+  var bookSection = document.getElementById('book');
+
+  fcards.forEach(function(c){
+    c.setAttribute('aria-pressed', 'false');
+    c.addEventListener('click', function(){
+      chosen = (c.querySelector('h3') || {}).textContent || '';
+      chosen = chosen.replace(/\s+/g, ' ').trim();
+      fcards.forEach(function(x){
+        var on = x === c;
+        x.classList.toggle('is-picked', on);
+        x.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      if (bookLabel) bookLabel.textContent = 'Search ' + chosen;
+      if (bookSection) bookSection.scrollIntoView({ behavior: RM ? 'auto' : 'smooth', block: 'start' });
+    });
+  });
+
+  /* The confirmation lived in an inline onsubmit attribute on the form, which
+     meant the chosen vehicle could never appear in it. */
+  if (bookForm) bookForm.addEventListener('submit', function(e){
+    e.preventDefault();
+    if (bookLabel) bookLabel.textContent = chosen ? 'Request sent · ' + chosen : 'Request sent';
+  });
 })();
