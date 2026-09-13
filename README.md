@@ -68,12 +68,38 @@ a redeploy, and a pageview can never be counted twice.
 
 | Thing | ID |
 | --- | --- |
-| GTM container | `GTM-M2H2DGDC` |
+| GTM account | `6376575028` ("Jahidul Islam") |
+| GTM container | `GTM-M2H2DGDC` (internal `263991270`) |
+| GTM tag | `GA4 - Config - Anti-xor` — Google Tag on *Initialization - All Pages* |
+| GA4 account | `407773507` ("Jahidul Islam") |
+| GA4 property | `553887405` ("Anti-xor") |
+| GA4 data stream | `15767802063` ("Anti-xor site") |
 | GA4 measurement ID | `G-ZS79L6JPKC` (fires from inside GTM) |
 
-To verify the chain in the browser's Network tab: `gtm.js?id=GTM-…` should load,
-and it in turn should load `gtag/js?id=G-…&cx=c&gtm=…`. That `&gtm=` parameter is
-the proof GA4 arrived through the container rather than from the page.
+One container per site, all under one account — the same pattern as the Flying
+Man and Atelier containers.
+
+To verify the chain in the browser console:
+
+```js
+Object.keys(window.google_tag_manager)
+// must contain BOTH "GTM-M2H2DGDC" (the container)
+// and "G-ZS79L6JPKC" (the GA4 tag the container loaded)
+```
+
+If only the `GTM-` key is there, the container loaded but the tag did not fire —
+check that the container version is *published*, not merely saved.
+
+## Search Console
+
+Property: **URL prefix** `https://anti-xor.pages.dev/` — a Domain property is
+impossible here because `pages.dev` is on the Public Suffix List and its DNS is
+not ours.
+
+Ownership was verified automatically by the **Google Tag Manager** method, which
+means the verification depends on the container snippet staying in `<head>`.
+Remove the snippet and the property loses verification. `sitemap.xml` is
+submitted, and the home page has been sent to the priority crawl queue.
 
 ## Local development
 
