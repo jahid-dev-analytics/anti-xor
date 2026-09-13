@@ -1,0 +1,13 @@
+{
+  "name": "Anti-xor — Premium Car Rentals",
+  "short_name": "Anti-xor",
+  "description": "A scroll-driven car-rental concept site with a real-time 3D car.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070B09",
+  "theme_color": "#070B09",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/assets/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

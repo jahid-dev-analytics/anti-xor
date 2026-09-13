@@ -1,0 +1,5 @@
+# Anti-xor — https://anti-xor.pages.dev
+User-agent: *
+Allow: /
+
+Sitemap: https://anti-xor.pages.dev/sitemap.xml

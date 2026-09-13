@@ -1,0 +1,11 @@
+# ==========================================================================
+# Cloudflare Pages — Anti-xor
+# --------------------------------------------------------------------------
+# A pure static site. Everything that ships lives in public/; nothing else in
+# the repo is uploadable, so README, tooling and .git can never leak into a
+# deployment. No Functions, no secrets, no build step.
+# ==========================================================================
+
+name = "anti-xor"
+compatibility_date = "2026-09-01"
+pages_build_output_dir = "public"

@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Anti-xor — Premium Car Rentals | Drive Your Dreams</title>
+<meta name="description" content="Luxury cars, flexible rentals, unforgettable journeys. A scroll-driven car-rental concept site with a real-time 3D car you can walk around.">
+<link rel="canonical" href="https://anti-xor.pages.dev/">
+<meta name="theme-color" content="#070B09">
+<meta name="color-scheme" content="dark">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Anti-xor">
+<meta property="og:url" content="https://anti-xor.pages.dev/">
+<meta property="og:title" content="Anti-xor — Premium Car Rentals | Drive Your Dreams">
+<meta property="og:description" content="Luxury cars, flexible rentals, unforgettable journeys. A scroll-driven car-rental concept site with a real-time 3D car you can walk around.">
+<meta property="og:image" content="https://anti-xor.pages.dev/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Anti-xor — Drive Your Dreams">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Anti-xor — Premium Car Rentals | Drive Your Dreams">
+<meta name="twitter:description" content="Luxury cars, flexible rentals, unforgettable journeys. A scroll-driven car-rental concept site with a real-time 3D car you can walk around.">
+<meta name="twitter:image" content="https://anti-xor.pages.dev/assets/og.png">
+
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/css/site.css">
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-PLACEHOLDER');</script>
+<!-- End Google Tag Manager -->
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-PLACEHOLDER"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<header class="nav">
+  <a class="mark" href="#top">Anti<b>-</b>xor</a>
+  <nav class="nav-links">
+    <a href="#fleet">Vehicles</a><a href="#proof">About</a><a href="#voices">Stories</a><a href="#book">Contact</a>
+  </nav>
+  <a class="pill" href="#book">Book Now</a>
+</header>
+
+<canvas id="gl" aria-hidden="true"></canvas>
+
+<!-- ACT 1 · arrival -->
+<section class="hero" id="top" data-act="hero">
+  <div class="hero-bg" aria-hidden="true">
+    <div class="sky" data-plane="0.08"></div>
+    <svg class="skyline far" id="skyFar" data-plane="0.22" preserveAspectRatio="none" viewBox="0 0 1000 300"></svg>
+    <div class="haze" data-plane="0.3"></div>
+    <svg class="skyline" id="skyNear" data-plane="0.42" preserveAspectRatio="none" viewBox="0 0 1000 300"></svg>
+    <div class="ground"></div>
+    <div class="streaks"><i class="streak a"></i><i class="streak b"></i><i class="streak c"></i></div>
+    <div class="vignette"></div>
+  </div>
+  <div class="hero-copy">
+    <p class="eyebrow">Premium car rentals</p>
+    <h1>Drive Your <em>Dreams</em></h1>
+    <p class="lede">Luxury cars. Flexible rentals. Unforgettable journeys. Pick the car, pick the city, and let the road do the rest.</p>
+    <div class="badges">
+      <div class="badge">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 13l2-5h14l2 5v5H3z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg>
+        <span><b>Premium</b><span>Vehicle collection</span></span>
+      </div>
+      <div class="badge">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <span><b>24/7</b><span>Roadside support</span></span>
+      </div>
+      <div class="badge">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3 4 6v6c0 5 3.4 8.3 8 9 4.6-.7 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>
+        <span><b>Easy &amp; Secure</b><span>Booking</span></span>
+      </div>
+    </div>
+    <div class="hero-cta">
+      <a class="pill" href="#fleet">Explore Cars
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h13M13 6l6 6-6 6"/></svg></a>
+      <a class="pill ghost" href="#proof">How it works</a>
+    </div>
+  </div>
+</section>
+
+<!-- ACT 2 · the turn (peak) -->
+<section class="act turn" data-act="turn" aria-label="Walk around the car">
+  <div class="stage">
+    <div class="studio" aria-hidden="true"></div>
+    <div class="line l1"><h2>Every angle, yours.</h2><p>Walk around it before you ever pick up the keys.</p></div>
+    <div class="line l2"><h2>Detailed inside and out.</h2><p>Every car is inspected and hand-finished before each handover.</p></div>
+    <div class="line l3"><h2>Delivered wherever you land.</h2><p>Your door, your hotel, or the tarmac. You choose the meeting point.</p></div>
+    <div class="line l4"><h2>Insured, fuelled, ready.</h2><p>The only thing left to add is the road.</p></div>
+  </div>
+</section>
+
+<!-- ACT 3 · the fleet (pan) -->
+<section class="act fleet" id="fleet" data-act="fleet">
+  <div class="stage">
+    <h2>Find Your Perfect Ride<span>From sporty coupes to spacious SUVs, there is a car for every journey.</span></h2>
+    <div class="track-wrap">
+      <div class="track" id="track">
+        <button class="fcard is-on" type="button">
+          <div class="art"><svg viewBox="0 0 240 80" aria-hidden="true"><path fill="#C5F55A" d="M14 58c6-14 30-24 60-26l30-16c26-4 62-4 92 6l18 8c10 4 14 12 12 22l-4 6H14z" opacity=".95"/><path fill="#0a120e" d="M74 34l28-14c22-3 50-3 72 4l-100 10z" opacity=".55"/><circle cx="60" cy="60" r="12" fill="#0a120e"/><circle cx="60" cy="60" r="5" fill="#C5F55A"/><circle cx="184" cy="60" r="12" fill="#0a120e"/><circle cx="184" cy="60" r="5" fill="#C5F55A"/></svg></div>
+          <h3>Sports Cars</h3>
+          <div class="meta"><span>Feel the power</span><span class="go"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span></div>
+        </button>
+        <button class="fcard" type="button">
+          <div class="art"><svg viewBox="0 0 240 80" aria-hidden="true"><path fill="#DDE6DC" d="M16 60V40c0-6 6-10 14-12l28-18c20-4 80-4 104 0l30 10c14 4 24 10 26 20v20z"/><path fill="#0a120e" d="M62 30l20-13c30-3 70-3 92 0l14 13z" opacity=".55"/><circle cx="62" cy="62" r="13" fill="#0a120e"/><circle cx="62" cy="62" r="5" fill="#DDE6DC"/><circle cx="186" cy="62" r="13" fill="#0a120e"/><circle cx="186" cy="62" r="5" fill="#DDE6DC"/></svg></div>
+          <h3>SUVs</h3>
+          <div class="meta"><span>Go further</span><span class="go"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span></div>
+        </button>
+        <button class="fcard" type="button">
+          <div class="art"><svg viewBox="0 0 240 80" aria-hidden="true"><path fill="#2B3A33" d="M10 60c2-10 10-16 24-18l30-22c30-4 80-4 110 0l30 14c14 6 20 14 22 26z"/><path fill="#0a120e" d="M70 32l24-16c26-2 62-2 88 0l16 16z" opacity=".55"/><circle cx="58" cy="60" r="12" fill="#0a120e"/><circle cx="58" cy="60" r="5" fill="#9fb5a8"/><circle cx="186" cy="60" r="12" fill="#0a120e"/><circle cx="186" cy="60" r="5" fill="#9fb5a8"/></svg></div>
+          <h3>Luxury Cars</h3>
+          <div class="meta"><span>Travel in style</span><span class="go"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span></div>
+        </button>
+        <button class="fcard" type="button">
+          <div class="art"><svg viewBox="0 0 240 80" aria-hidden="true"><path fill="#EAF1E6" d="M12 60c4-14 22-22 50-24l36-16c28-4 60-2 84 8l22 10c10 4 16 12 16 22z"/><path fill="#0a120e" d="M70 32l32-14c24-3 52-1 74 6l-104 8z" opacity=".5"/><circle cx="62" cy="60" r="12" fill="#0a120e"/><circle cx="62" cy="60" r="5" fill="#C5F55A"/><circle cx="182" cy="60" r="12" fill="#0a120e"/><circle cx="182" cy="60" r="5" fill="#C5F55A"/></svg></div>
+          <h3>Electric Cars</h3>
+          <div class="meta"><span>Drive the future</span><span class="go"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span></div>
+        </button>
+        <button class="fcard" type="button">
+          <div class="art"><svg viewBox="0 0 240 80" aria-hidden="true"><path fill="#1B2620" d="M14 62V36c0-8 6-14 14-14h120l40 2c18 2 30 12 34 24v14z"/><path fill="#0a120e" d="M36 28h60v14H36zM106 28h60v14h-60z" opacity=".6"/><circle cx="58" cy="62" r="12" fill="#0a120e"/><circle cx="58" cy="62" r="5" fill="#9fb5a8"/><circle cx="190" cy="62" r="12" fill="#0a120e"/><circle cx="190" cy="62" r="5" fill="#9fb5a8"/></svg></div>
+          <h3>Vans &amp; MPVs</h3>
+          <div class="meta"><span>More space, more fun</span><span class="go"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span></div>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ACT 4 · proof (reveal + kinetic) -->
+<section class="act proof" id="proof" data-act="proof">
+  <div class="stage">
+    <div class="pick" id="pick">
+      <div class="road"></div>
+      <svg class="car" viewBox="0 0 240 80" aria-hidden="true"><path fill="#111a15" d="M10 60c2-10 10-16 24-18l30-22c30-4 80-4 110 0l30 14c14 6 20 14 22 26z"/><path fill="#05090a" d="M70 32l24-16c26-2 62-2 88 0l16 16z"/><path fill="#C5F55A" d="M14 44h10v3H14z" opacity=".9"/><path fill="#ffffff" d="M212 44h12v3h-12z" opacity=".9"/><circle cx="58" cy="60" r="12" fill="#05090a"/><circle cx="58" cy="60" r="5" fill="#8aa393"/><circle cx="186" cy="60" r="12" fill="#05090a"/><circle cx="186" cy="60" r="5" fill="#8aa393"/></svg>
+      <div class="spec">
+        <b>Mercedes-Benz C-Class</b>
+        <small>Luxury Sedan</small>
+        <div class="stars">★★★★★<i>4.9 (124 reviews)</i></div>
+        <div class="price">$120 <i>/day</i></div>
+      </div>
+    </div>
+    <div>
+      <h2>More Than Just Car Rental</h2>
+      <div class="feats">
+        <div class="feat"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M8 7h6a2.5 2.5 0 0 1 0 5H9a2.5 2.5 0 0 0 0 5h7"/></svg></span><span><b>Affordable Price</b><span>Best rates, no hidden fees</span></span></div>
+        <div class="feat"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 4 6v6c0 5 3.4 8.3 8 9 4.6-.7 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span><b>Clean &amp; Safe</b><span>Fully inspected vehicles</span></span></div>
+        <div class="feat"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7a3 3 0 0 1 3-3h1l2 4-2 1a10 10 0 0 0 5 5l1-2 4 2v1a3 3 0 0 1-3 3A15 15 0 0 1 4 7Z"/></svg></span><span><b>24/7 Support</b><span>Always here for you</span></span></div>
+        <div class="feat"><span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4m-6 9 2 2 4-4"/></svg></span><span><b>Easy Booking</b><span>Fast and hassle-free</span></span></div>
+      </div>
+      <a class="pill" href="#fleet">View All Vehicles
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h13M13 6l6 6-6 6"/></svg></a>
+    </div>
+  </div>
+</section>
+
+<!-- ACT 5 · voices (pointer) -->
+<section class="act voices" id="voices">
+  <div class="head"><h2>What Our Customers Say<span>Three journeys, three cities, the same handover.</span></h2></div>
+  <div class="quotes" id="quotes">
+    <article class="q"><div class="stars">★★★★★</div><p>"Anti-xor made our trip unforgettable. The car was in perfect condition and the booking process was super easy."</p><div class="who"><i></i><span><b>Sarah Johnson</b><small>New York, USA</small></span></div></article>
+    <article class="q"><div class="stars">★★★★★</div><p>"They met us at arrivals with the keys and a cold bottle of water. Forty minutes later we were on the coast road."</p><div class="who"><i style="background:linear-gradient(140deg,#7a5a3f,#2b2018)"></i><span><b>Daniel Okafor</b><small>Dubai, UAE</small></span></div></article>
+    <article class="q"><div class="stars">★★★★★</div><p>"I changed the drop-off city twice. Nobody sighed, nobody charged me. That is the whole review."</p><div class="who"><i style="background:linear-gradient(140deg,#556b7a,#1a2229)"></i><span><b>Léa Martin</b><small>Nice, France</small></span></div></article>
+  </div>
+</section>
+
+<!-- ACT 6 · book (resolve) -->
+<section class="act book" id="book">
+  <div class="in">
+    <h2>Ready to Hit the Road?</h2>
+    <p class="lede">Book your dream car today and make every journey special. Confirmed in minutes, delivered where you say.</p>
+    <form class="bar" onsubmit="event.preventDefault();this.querySelector('.pill span').textContent='Request sent';">
+      <div class="field">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        <div><label for="pickup">Pick Up Location</label><select id="pickup"><option>Dubai Marina</option><option>Downtown</option><option>Airport, Terminal 3</option></select></div>
+      </div>
+      <div class="field">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+        <div><label for="dropoff">Drop Off Location</label><select id="dropoff"><option>Same as pick up</option><option>Downtown</option><option>Airport, Terminal 3</option></select></div>
+      </div>
+      <div class="field">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+        <div><label for="d1">Pick Up Date</label><input id="d1" type="date" value="2026-09-18"></div>
+      </div>
+      <div class="field">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+        <div><label for="d2">Return Date</label><input id="d2" type="date" value="2026-09-21"></div>
+      </div>
+      <button class="pill" type="submit"><span>Search Cars</span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
+    </form>
+    <div class="horizon" aria-hidden="true"></div>
+    <div class="foot">
+      <span class="mark">Anti<b>-</b>xor</span>
+      <nav><a href="#top">Home</a><a href="#fleet">Vehicles</a><a href="#proof">About</a><a href="#voices">Stories</a><a href="#book">Contact</a></nav>
+      <span>© 2026 Anti-xor · <strong>Concept site</strong> — sample vehicles, prices and reviews shown for layout.</span>
+    </div>
+  </div>
+</section>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://anti-xor.pages.dev/#website",
+      "url": "https://anti-xor.pages.dev/",
+      "name": "Anti-xor",
+      "description": "Premium car rental concept site — a scroll-driven landing page with a real-time WebGL car.",
+      "inLanguage": "en"
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://anti-xor.pages.dev/#org",
+      "name": "Anti-xor",
+      "url": "https://anti-xor.pages.dev/",
+      "logo": "https://anti-xor.pages.dev/assets/og.png",
+      "description": "Anti-xor is a design concept for a premium car-rental brand. Vehicles, prices and reviews on the page are samples shown for layout."
+    }
+  ]
+}
+</script>
+<script src="/js/scene.js" defer></script>
+</body>
+</html>
